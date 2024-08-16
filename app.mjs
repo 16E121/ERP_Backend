@@ -10,6 +10,7 @@ import { connectDB } from './config/dbconfig.mjs';
 import dotenv from 'dotenv';
 import { listRoutes } from './middleware/apiList.mjs';
 import { failed } from './res.mjs';
+import { staticPaths } from './staticPaths.mjs';
 
 dotenv.config();
 
@@ -40,11 +41,10 @@ app.use('/api', (req, res) => {
 const reactBuildPath = path.join(__dirname, 'frontend');
 app.use(express.static(reactBuildPath));
 
-const machineOutern = path.join(__dirname, 'controller', 'DataEntry', 'fileHandling', 'uploads', 'machineOutern');
-app.use('/imageURL/machineOutern', express.static(machineOutern));
-
-const inwardActivity = path.join(__dirname, 'controller', 'DataEntry', 'fileHandling', 'uploads', 'inwardActivity');
-app.use('/imageURL/inwardActivity', express.static(inwardActivity));
+staticPaths.forEach(({ route, folder }) => {
+  const resolvedPath = path.join(__dirname, folder);
+  app.use(route, express.static(resolvedPath));
+});
 
 app.get('*', (req, res) => {
   res.sendFile(path.join(reactBuildPath, 'index.html'));
