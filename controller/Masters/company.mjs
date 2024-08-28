@@ -1,5 +1,6 @@
 import sql from 'mssql'
 import { servError, dataFound, noData, invalidInput, failed, success } from '../../res.mjs';
+import { checkIsNumber } from '../../helper_functions.mjs';
 
 
 const companyControl = () => {
@@ -19,9 +20,17 @@ const companyControl = () => {
     }
 
     const getCompany = async (req, res) => {
+        const { Company_id } = req.query;
         
         try {
-            const request = new sql.Request().query('SELECT * FROM tbl_Company_Master WHERE Del_Flag = 0')
+            let query = 'SELECT * FROM tbl_Company_Master WHERE Del_Flag = 0 ';
+
+            if (checkIsNumber(Company_id)) {
+                query += ' AND Company_id = @Company_id ';
+            }
+            const request = new sql.Request()
+                .input('Company_id', Company_id)
+                .query(query)
 
             const result = await request;
 

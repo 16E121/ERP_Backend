@@ -1,17 +1,17 @@
 import express from 'express';
-import empAttendance from '../controller/Attendance/empAttendance.mjs'; 
 import newAttendance from '../controller/Attendance/newAttendance.mjs';
+import salesPersonVisitLogs from '../controller/Attendance/salesPersonVisitLogs.mjs';
 const AttendanceRouter = express.Router();
 
 
+AttendanceRouter.get('/attendance', newAttendance.getMyLastAttendance);
+AttendanceRouter.get('/attendance/history', newAttendance.getAttendanceHistory);
 AttendanceRouter.post('/attendance', newAttendance.addAttendance);
-AttendanceRouter.put('/attendance', empAttendance.closeAttendance);
-AttendanceRouter.delete('/attendance', empAttendance.closeAttendance);
-
-AttendanceRouter.get('/myTodayAttendance', empAttendance.getMyTodayAttendance);
-AttendanceRouter.get('/myAttendanceHistory', empAttendance.getAttendanceHistory);
-AttendanceRouter.get('/getMyLastAttendance', empAttendance.getMyLastAttendance);
+AttendanceRouter.put('/attendance', newAttendance.closeAttendance);
+// AttendanceRouter.delete('/attendance', newAttendance.closeAttendance);
 
 
+AttendanceRouter.get('/visitLogs', salesPersonVisitLogs.getVisitedLogs);
+AttendanceRouter.post('/visitLogs', salesPersonVisitLogs.postVisitLogs);
 
 export default AttendanceRouter;

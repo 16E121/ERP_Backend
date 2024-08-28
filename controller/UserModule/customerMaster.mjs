@@ -67,7 +67,7 @@ const CustomerMaster = () => {
 
             const getCompany = (await new sql.Request()
                 .input('branch', Branch_Id)
-                .query(`SELECT COALESCE(Company_id, 0) FROM tbl_Branch_Master WHERE BranchId = @branch`)
+                .query(`SELECT COALESCE(Company_id, 0) AS Company_id FROM tbl_Branch_Master WHERE BranchId = @branch`)
             ).recordset[0].Company_id;
 
             if (!checkIsNumber(getCompany) || getCompany === 0) {
@@ -192,7 +192,7 @@ const CustomerMaster = () => {
 
             const getCompany = (await new sql.Request()
                 .input('branch', Branch_Id)
-                .query(`SELECT COALESCE(Company_id, 0) FROM tbl_Branch_Master WHERE BranchId = @branch`)
+                .query(`SELECT COALESCE(Company_id, 0) AS Company_id FROM tbl_Branch_Master WHERE BranchId = @branch`)
             ).recordset[0].Company_id;
 
             if (!checkIsNumber(getCompany) || getCompany === 0) {

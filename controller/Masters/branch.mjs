@@ -81,7 +81,9 @@ const branchController = () => {
                     tbl_Branch_Master B,
                     tbl_Company_Master CM
                 WHERE 
-                    B.Company_id=CM.Company_id
+                    B.Company_id = CM.Company_id
+                    AND 
+                    B.Del_Flag = 0
                 `);
 
             if (result.recordset.length > 0) {

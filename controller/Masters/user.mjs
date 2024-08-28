@@ -202,8 +202,10 @@ const user = () => {
         }
 
         try {
-            const result = (
-                await sql.query(`
+
+            const result = (await new sql.Request()
+                .input('Comp', Company_id)
+                .query(`
                     SELECT 
                         UserId, Name 
                     FROM 
@@ -211,8 +213,8 @@ const user = () => {
                     WHERE 
                         UserTypeId = 3 
                         AND UDel_Flag = 0 
-                        AND Company_id = @comp`
-                )
+                        AND Company_id = @comp
+                    `)
             ).recordset;
 
             if (result.length > 0) {
@@ -233,8 +235,9 @@ const user = () => {
         }
 
         try {
-            const result = (
-                await sql.query(`
+            const result = (await new sql.Request()
+                .input('comp', Company_id)
+                .query(`
                     SELECT 
                         UserId, Name 
                     FROM 
@@ -248,6 +251,41 @@ const user = () => {
 
             if (result.length > 0) {
                 dataFound(res, result)
+            } else {
+                noData(res)
+            }
+        } catch (e) {
+            servError(e, res);
+        }
+    }
+
+    const customUserGet = async (req, res) => {
+        const { Company_id } = req.query;
+
+        if (!checkIsNumber(Company_id)) {
+            return invalidInput(res, 'Company_id is required');
+        }
+
+        try {
+            const result = await new sql.Request()
+                .input('Company_id', Company_id)
+                .query(`
+                    SELECT
+                    	u.*,
+                    	b.BranchName,
+                    	c.Company_id,
+                    	c.Company_Name
+                    FROM
+                    	tbl_Users AS u
+                    	LEFT JOIN tbl_Branch_Master AS b
+                    	ON b.BranchId = u.BranchId
+                    	LEFT JOIN tbl_Company_Master AS c
+                    	ON c.Company_id = b.Company_id
+                    WHERE
+                    	c.Company_id = @Company_id`);
+
+            if (result.recordset.length > 0) {
+                dataFound(res, result.recordset)
             } else {
                 noData(res)
             }
@@ -300,6 +338,7 @@ const user = () => {
         userDropdown,
         employeeDropDown,
         getSalesPersonDropdown,
+        customUserGet,
         changePassword,
     }
 }

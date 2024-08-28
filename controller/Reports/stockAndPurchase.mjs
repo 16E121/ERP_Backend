@@ -71,6 +71,48 @@ const StockAndPurchaseReport = () => {
         }
     }
 
+    const salesReport = async (req, res) => {
+        const { Fromdate, Todate } = req.query;
+
+        try {
+    
+            const DynamicDB = new sql.Request(req.db)
+                .input('Fromdate', Fromdate)
+                .input('To_date', Todate)
+                .execute('Avg_Live_Sales_Report')
+
+            const result = await DynamicDB;
+            if (result.recordset.length > 0) {
+                dataFound(res, result.recordset)
+            } else {
+                noData(res)
+            }
+        } catch (e) {
+            servError(e, res)
+        }
+    }
+
+    const porductBasedSalesResult = async (req, res) => {
+        const { Fromdate, Todate } = req.query;
+
+        try {
+    
+            const DynamicDB = new sql.Request(req.db)
+                .input('Fromdate', Fromdate)
+                .input('To_date', Todate)
+                .execute('Avg_Live_Sales_Report_1')
+    
+            const result = await DynamicDB;
+            if (result.recordsets[0].length > 0) {
+                dataFound(res, result.recordsets[0], 'dataFound', {LOSAbstract: result.recordsets[1]})
+            } else {
+                noData(res)
+            }
+        } catch (e) {
+            servError(e, res)
+        }
+    }
+
     const externalAPI = async (req, res) => {
         try {
             const { Fromdate, Todate } = req.query;
@@ -100,7 +142,9 @@ const StockAndPurchaseReport = () => {
     return {
         stockReport,
         purchaseReport,
-        externalAPI
+        externalAPI,
+        salesReport,
+        porductBasedSalesResult,
     }
 }
 

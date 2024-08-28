@@ -9,6 +9,7 @@ import MastersRouter from './masters.mjs';
 import projectRoute from './projectsAndTasks.mjs';
 import UserModule from './userModule.mjs';
 import ReportRouter from './reports.mjs';
+import SalesRouter from './sales.mjs';
 
 const indexRouter = express.Router();
 
@@ -18,6 +19,7 @@ indexRouter.use('/dashboard', DashboardRouter);
 indexRouter.use('/dataEntry', dataEntryRouter);
 indexRouter.use('/discussionForum', TopicsRouter);
 indexRouter.use('/masters', MastersRouter);
+indexRouter.use('/sales', SalesRouter);
 indexRouter.use('/taskManagement', projectRoute);
 indexRouter.use('/reports', ReportRouter)
 indexRouter.use('/userModule', UserModule);

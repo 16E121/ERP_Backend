@@ -6,7 +6,6 @@ const CustomersPayments = () => {
     const manualPayment = async (req, res) => {
         const { amount, bills, UserId, paymentType, TransactionId } = req.body;
 
-
         if (!Number.isFinite(amount) || amount <= 0) {
             return invalidInput(res, 'Invalid amount. Amount must be a positive number');
         }
@@ -31,55 +30,69 @@ const CustomersPayments = () => {
 
             const Cust_Id = result.recordset[0].Cust_Id;
 
-            const transaction = await new sql.Transaction().begin();
+            const transaction = new sql.Transaction();
 
             try {
-                const paymentRequest = new sql.Request(transaction);
-                paymentRequest.input('TransactionId', TransactionId);
-                paymentRequest.input('Cust_Id', Cust_Id);
-                paymentRequest.input('Bill_Count', bills.length);
-                paymentRequest.input('Total_Amount', amount);
-                paymentRequest.input('Payment_Type', paymentType);
-                paymentRequest.input('Comp_Id', bills[0].Company_Id);
-                const postPayment = await paymentRequest.query(`
-                    INSERT INTO tbl_Payment_Order 
-                        (Order_Id, Cust_Id, Bill_Count, Total_Amount, Payment_Status, Payment_Type, Comp_Id)             
-                    VALUES 
-                        (@TransactionId, CONVERT(BIGINT, @Cust_Id), @Bill_Count, CONVERT(DECIMAL(10, 2), @Total_Amount), 'ManualPay', @Comp_Id);
-    
-                    SELECT SCOPE_IDENTITY() AS Pay_Id;
-                    `)
+                await transaction.begin();
 
-                if (postPayment.recordset && postPayment.recordset.length > 0) {
-                    const Pay_Id = postPayment.recordset[0].Pay_Id;
+                const paymentRequest = new sql.Request(transaction)
+                    .input('TransactionId', TransactionId)
+                    .input('Cust_Id', Cust_Id)
+                    .input('Bill_Count', bills.length)
+                    .input('Total_Amount', amount)
+                    .input('Payment_Type', paymentType)
+                    .input('Comp_Id', bills[0].Company_Id)
+                    .query(`
+                        INSERT INTO tbl_Payment_Order 
+                            (Order_Id, Cust_Id, Bill_Count, Total_Amount, Payment_Status, Payment_Type, Comp_Id)             
+                        VALUES 
+                            (@TransactionId, CONVERT(BIGINT, @Cust_Id), @Bill_Count, CONVERT(DECIMAL(10, 2), @Total_Amount), 'ManualPay', 1, @Comp_Id);
+        
+                        SELECT SCOPE_IDENTITY() AS Pay_Id;
+                        `);
+
+                const postPayment = await paymentRequest;
+
+                const Pay_Id = postPayment.recordset[0].Pay_Id;
+
+                if (Pay_Id) {
 
                     for (const obj of bills) {
-                        const detailsRequest = new sql.Request(transaction);
-                        detailsRequest.input('Pay_Id', Pay_Id);
-                        detailsRequest.input('Order_Id', TransactionId);
-                        detailsRequest.input('Cust_Id', Cust_Id);
-                        detailsRequest.input('Ledger_Name', Number(obj.tally_id));
-                        detailsRequest.input('Bal_Amount', obj.Bal_Amount);
-                        detailsRequest.input('Invoice_No', obj.invoice_no);
-                        detailsRequest.input('Comp_Id', obj.Company_Id);
+                        const detailsRequest = new sql.Request(transaction)
+                            .input('Pay_Id', Pay_Id)
+                            .input('Order_Id', TransactionId)
+                            .input('Cust_Id', Cust_Id)
+                            .input('Ledger_Name', Number(obj.tally_id))
+                            .input('Bal_Amount', obj.Bal_Amount)
+                            .input('Invoice_No', obj.invoice_no)
+                            .input('Comp_Id', obj.Company_Id)
+                            .query(`
+                                INSERT INTO tbl_Payment_Order_Bills 
+                                    (Pay_Id, Order_Id, Cust_Id, Ledger_Name, Bal_Amount, Invoice_No, Comp_Id) 
+                                VALUES 
+                                    (@Pay_Id, @Order_Id, @Cust_Id, @Ledger_Name, @Bal_Amount, @Invoice_No, @Comp_Id)
+                            `)
 
-                        await detailsRequest.query(`
-                            INSERT INTO tbl_Payment_Order_Bills 
-                                (Pay_Id, Order_Id, Cust_Id, Ledger_Name, Bal_Amount, Invoice_No, Comp_Id) 
-                            VALUES 
-                                (@Pay_Id, @Order_Id, @Cust_Id, @Ledger_Name, @Bal_Amount, @Invoice_No, @Comp_Id)
-                        `);
+                        const detailsInserted = await detailsRequest;
+
+                        if (detailsInserted.rowsAffected[0] === 0) {
+                            await transaction.rollback();
+                            return failed(res, 'Failed to insert Bills Details');
+                        }
                     }
 
                     await transaction.commit();
-                    success(res, 'Payment details saved');
+                    return success(res, 'Payment details saved');
                 } else {
-                    await transaction.rollback();
-                    failed(res, 'Failed to create Order');
+                    throw new Error('Failed to create Order')
                 }
             } catch (ee) {
-                await transaction.rollback();
-                servError(ee, res);
+                if (transaction._aborted) {
+                    return servError(ee, res);
+                } else {
+                    await transaction.rollback();
+                    return servError(ee, res);
+                }
             }
 
         } catch (e) {

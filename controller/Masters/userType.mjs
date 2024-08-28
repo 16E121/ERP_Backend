@@ -25,10 +25,10 @@ const userTypeMaster = () => {
     const postUserType = async (req, res) => {
         const { UserType } = req.body;
         try {
-            const request = new sql.Request();
-            request.input('Mode', 1);
-            request.input('Id', 0);
-            request.input('UserType', UserType);
+            const request = new sql.Request()
+            request.input('Mode', 1)
+            request.input('Id', 0)
+            request.input('UserType', UserType)
             const result = await request.execute('User_Type_SP');
 
             if (result.rowsAffected[0] > 0) {

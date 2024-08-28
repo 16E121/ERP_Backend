@@ -182,7 +182,8 @@ const projectController = () => {
                         p.Project_Name, 
                         p.Est_Start_Dt, 
                         p.Est_End_Dt,
-                        (
+
+                        COALESCE((
                         	SELECT 
                         		COUNT(Sch_Id) 
                         	FROM 
@@ -191,8 +192,9 @@ const projectController = () => {
                         		Project_Id = p.Project_Id 
                         		AND 
                         		Sch_Del_Flag = 0
-                        ) AS SchedulesCount,
-                        (
+                        ), 0) AS SchedulesCount,
+
+                        COALESCE((
                     	    SELECT 
                     	    	COUNT(Sch_Id) 
                     	    FROM 
@@ -203,8 +205,9 @@ const projectController = () => {
                     	    	Sch_Del_Flag = 0
                     	    	AND
                     	    	Sch_Status = 3
-                    	) AS SchedulesCompletedCount,
-                        (
+                    	), 0) AS SchedulesCompletedCount,
+
+                        COALESCE((
                       	    SELECT 
                       	        COUNT(t.Task_Id) 
                     	    FROM 
@@ -219,8 +222,9 @@ const projectController = () => {
                               	s.Sch_Del_Flag = 0
                               	AND
                               	t.Task_Sch_Del_Flag = 0
-                        ) AS TasksScheduled,
-                    	(
+                        ), 0) AS TasksScheduled,
+
+                    	COALESCE((
                     		SELECT 
                     			COUNT(A_Id)
                     		FROM
@@ -229,24 +233,27 @@ const projectController = () => {
                     			Sch_Project_Id = p.Project_Id 
                     			AND
                     			Task_Sch_Status = 3
-                    	) AS CompletedTasks,
-                    	(
+                    	), 0) AS CompletedTasks,
+
+                    	COALESCE((
                     		SELECT
                     			COUNT(DISTINCT Task_Levl_Id)
                     		FROM 
                     			tbl_Task_Details
                     		WHERE
                     			Project_Id = p.Project_Id
-                    	) AS TasksAssignedToEmployee,
-                    	(
+                    	), 0) AS TasksAssignedToEmployee,
+
+                    	COALESCE((
                     		SELECT 
                     			COUNT(DISTINCT  Task_Levl_Id)
                     		FROM 
                     			tbl_Work_Master
                     		WHERE
                     			Project_Id = p.Project_Id
-                    	) AS TasksProgressCount,
-                        (
+                    	), 0) AS TasksProgressCount,
+
+                        COALESCE((
                       	    SELECT
                     	    	  COUNT(DISTINCT Emp_Id)
                       	    FROM 
@@ -255,13 +262,14 @@ const projectController = () => {
                       	    	Project_Id = p.Project_Id
                     	    	  AND
                     	    	  Invovled_Stat = 1
-                        ) AS EmployeesInvolved
+                        ), 0) AS EmployeesInvolved
+                        
                     FROM 
                         tbl_Project_Master AS p
                     WHERE 
                     	p.Project_Status != 3 
                         AND p.Project_Status != 4
-                        AND p.Company_id = comp
+                        AND p.Company_id = @comp
                             `)
             const result = await request;
 

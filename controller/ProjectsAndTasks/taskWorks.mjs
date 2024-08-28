@@ -258,7 +258,7 @@ const TaskWorks = () => {
         const { Emp_Id, reqDate } = req.query;
 
         try {
-            const query = `
+            let query = `
             SELECT 
                 CONVERT(DATE, wm.Work_Dt) AS Work_Date,
                 t.Task_Name,
@@ -281,7 +281,7 @@ const TaskWorks = () => {
             }
             if (reqDate) {
                 query += `
-                AND wm.Work_Dt = @reqDate
+                AND CONVERT(DATE, wm.Work_Dt) = CONVERT(DATE, @reqDate)
                 `
             }
 
@@ -295,8 +295,8 @@ const TaskWorks = () => {
             `
 
             const request = new sql.Request()
-                .input('Emp_Id', sql.BigInt, Emp_Id)
-                .input('reqDate', sql.Date, reqDate)
+                .input('Emp_Id', Emp_Id)
+                .input('reqDate', reqDate)
                 .query(query)
             const result = await request
 
@@ -341,14 +341,15 @@ const TaskWorks = () => {
             `;
 
             if (Number(Emp_Id)) {
-                query += `AND wm.Emp_Id = @Emp_Id`
+                query += ` AND wm.Emp_Id = @Emp_Id `
             }
-            query += `ORDER BY CONVERT(DATE, wm.Work_Dt)`;
+            query += ` ORDER BY CONVERT(DATE, wm.Work_Dt) `;
 
             const request = new sql.Request()
                 .input('Task_Id', sql.BigInt, Task_Id)
                 .input('From', sql.Date, From)
                 .input('To', sql.Date, To)
+                .input('Emp_Id', sql.BigInt, Emp_Id)
                 .query(query);
 
             const result = await request;
