@@ -37,7 +37,7 @@ const sfProductController = () => {
 
         const { Company_Id } = req.query;
 
-        if (isNaN(Company_Id)) {
+        if (!checkIsNumber(Company_Id)) {
             return invalidInput(res, 'Company_Id is required');
         }
 
@@ -64,8 +64,10 @@ const sfProductController = () => {
             	ON b.Brand_Id = p.Brand
             	LEFT JOIN tbl_Product_Group AS pg
             	ON pg.Pro_Group_Id = p.Product_Group
-            WHERE
-                p.Company_Id = @company`;
+            `;
+
+            // WHERE
+            //     p.Company_Id = @company
 
             const request = new sql.Request();
             request.input('company', Company_Id);
@@ -89,7 +91,7 @@ const sfProductController = () => {
     const getGroupedProducts = async (req, res) => {
         const { Company_Id } = req.query;
 
-        if (isNaN(Company_Id)) {
+        if (!checkIsNumber(Company_Id)) {
             return invalidInput(res, 'Company_Id is required');
         }
 
@@ -121,10 +123,12 @@ const sfProductController = () => {
                 tbl_Product_Group AS g
             WHERE
                 g.Pro_Group_Id != 0 
-                AND
-                g.Company_Id = @comp
             ORDER BY 
                 g.Pro_Group_Id`;
+
+                
+                // AND
+                // g.Company_Id = @comp
 
             const request = new sql.Request();
             request.input('comp', Company_Id);
@@ -161,7 +165,8 @@ const sfProductController = () => {
         try {
             const result = await new sql.Request()
                 .input('Company_Id', Company_Id)
-                .query(`SELECT Pro_Group_Id, Pro_Group FROM tbl_Product_Group WHERE Company_Id = @Company_Id`);
+                .query(`SELECT Pro_Group_Id, Pro_Group FROM tbl_Product_Group `);
+                // WHERE Company_Id = @Company_Id
 
             if (result.recordset.length > 0) {
                 dataFound(res, result.recordset);
@@ -182,7 +187,8 @@ const sfProductController = () => {
         try {
             const result = await new sql.Request()
                 .input('Company_Id', Company_Id)
-                .query(`SELECT Pack_Id, Pack FROM tbl_Pack_Master WHERE Company_Id = @Company_Id`);
+                .query(`SELECT Pack_Id, Pack FROM tbl_Pack_Master `);
+                // WHERE Company_Id = @Company_Id
 
             if (result.recordset.length > 0) {
                 dataFound(res, result.recordset);

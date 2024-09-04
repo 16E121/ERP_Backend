@@ -1,5 +1,6 @@
 import sql from 'mssql';
-import { failed, servError, success } from '../../res.mjs';
+import { dataFound, failed, invalidInput, noData, servError, success } from '../../res.mjs';
+import { checkIsNumber } from '../../helper_functions.mjs';
 
 
 const appMenu = () => {
@@ -168,12 +169,146 @@ const appMenu = () => {
         }
     }
 
+    const menuMaster = async (req, res) => {
+
+        try {
+            const getAppMenuData = (await new sql.Request()
+                .query(`
+                    WITH SubMenuData AS (
+                        SELECT * FROM tbl_Sub_Menu WHERE Active = 1
+                    )
+                    SELECT 
+                        m.*,
+                        COALESCE((
+                            SELECT 
+                                s.*
+                            FROM
+                                SubMenuData AS s
+                            WHERE
+                                s.MenuId = m.Id
+                            FOR JSON PATH
+                        ), '[]') AS SubMenu
+                    FROM 
+                        tbl_Master_Menu AS m
+            `)).recordset;
+
+            // WHERE 
+            // m.Active = 1
+
+            if (getAppMenuData.length > 0) {
+                dataFound(res, getAppMenuData.map(o => ({...o, SubMenu: JSON.parse(o.SubMenu)})));
+            } else {
+                noData(res);
+            }
+
+        } catch (e) {
+            servError(e, res);
+        }
+    }
+
+    const createMenu = async (req, res) => {
+        const { MenuName, PageUrl, ParentId, OrderNo } = req.body;
+
+        if (!MenuName || (checkIsNumber(ParentId) && !PageUrl)) {
+            return invalidInput(res, 'MenuName is required, PageUrl is optional');
+        }
+
+        try {
+            let query;
+            if (checkIsNumber(ParentId)) {
+                query = `   INSERT INTO tbl_Sub_Menu (
+                                MenuId, SubMenuName, PageUrl, Active
+                            ) VALUES (
+                                @ParentId, @MenuName, @PageUrl, 1
+                            )`;
+            } else {
+                query = `   INSERT INTO tbl_Master_Menu (
+                                MenuName, PageUrl, OrderNo, Active, APP_Type 
+                            ) VALUES (
+                                @MenuName, @PageUrl, @OrderNo, 1, 2
+                            )`;
+            }
+            const request = new sql.Request()
+                .input('MenuName', MenuName)
+                .input('PageUrl', PageUrl)
+                .input('ParentId', ParentId)
+                .input('OrderNo', OrderNo)
+                .query(query);
+
+            const result = await request;
+
+            if (result.rowsAffected[0] > 0) {
+                success(res, 'Menu Created')
+            } else {
+                failed(res, 'Failed to create Menu')
+            }
+        } catch (e) {
+            servError(e, res);
+        }
+    }
+
+    const updateMenu = async (req, res) => {
+        const { Id, MenuName, PageUrl, ParentId, OrderNo, isActive } = req.body;
+
+        if (!checkIsNumber(Id) || !MenuName || (checkIsNumber(ParentId) && !PageUrl)) {
+            return invalidInput(res, 'MenuName, PageUrl is required');
+        }
+
+        try {
+            let query;
+
+            if (checkIsNumber(ParentId)) {
+                query = `
+                UPDATE tbl_Sub_Menu 
+                SET 
+                    SubMenuName = @MenuName,
+                    PageUrl = @PageUrl,
+                    MenuId = @ParentId,
+                    Active = @Active
+                WHERE
+                    Id = @Id`
+            } else {
+                query = `   
+                UPDATE tbl_Master_Menu
+                SET
+                    MenuName = @MenuName,
+                    PageUrl = @PageUrl,
+                    Active = @Active,
+                    OrderNo = @OrderNo
+                WHERE
+                    Id = @Id`
+            }
+
+            const request = new sql.Request()
+                .input('MenuName', MenuName)
+                .input('ParentId', ParentId)
+                .input('PageUrl', PageUrl)
+                .input('OrderNo', OrderNo)
+                .input('Active', Boolean(isActive) ? 1 : 0)
+                .input('Id', Id)
+                .query(query)
+
+            const result = await request;
+
+            if (result.rowsAffected[0] > 0) {
+                success(res, 'Changes saved')
+            } else {
+                failed(res, 'Failed to save')
+            }
+        } catch (e) {
+            servError(e, res);
+        }
+    }
+
     return {
         getMenu,
         getUserRights,
         modifyUserRights,
         getUserTypeRights,
-        modifyUserTypeRights
+        modifyUserTypeRights,
+        menuMaster,
+        createMenu,
+        updateMenu
     }
 }
 

@@ -7,14 +7,15 @@ const taskModule = () => {
     const getTaskDropDown = async (req, res) => {
         const { Company_id } = req.query;
 
-        if (!checkIsNumber(Company_id)) {
-            return invalidInput(res, 'Company_id is required');
-        }
+        // if (!checkIsNumber(Company_id)) {
+        //     return invalidInput(res, 'Company_id is required');
+        // }
 
         try {
             const request = new sql.Request()
                 .input('comp', Company_id)
-                .query(`SELECT Task_Id, Task_Name FROM tbl_Task WHERE Company_id = @comp ORDER BY Task_Name`)
+                .query(`SELECT Task_Id, Task_Name FROM tbl_Task ORDER BY Task_Name`)
+                // WHERE Company_id = @comp
 
             const result = await request;
 
@@ -64,18 +65,19 @@ const taskModule = () => {
 	                    	WHERE
 	                    		Task_Id = t.Task_Id
 	                    	FOR JSON PATH
-	                    ), '[]') AS Det_string
+	                    ), '[]') AS Task_Parameters
                     FROM 
                         tbl_Task AS t
-                    WHERE
-                        t.Company_id = @comp
                     ORDER BY 
                         CONVERT(DATE, t.Entry_Date) DESC`)
+                        
+                    // WHERE
+                    // t.Company_id = @comp
 
             if (result.recordset.length > 0) {
                 const parsed = result.recordset.map(o => ({
                     ...o,
-                    Det_string: JSON.parse(o?.Det_string)
+                    Task_Parameters: JSON.parse(o?.Task_Parameters)
                 }))
                 return dataFound(res, parsed)
             } else {
@@ -154,39 +156,6 @@ const taskModule = () => {
             return servError(e, res)
         }
     };
-
-    // const editTask = async (req, res) => {
-    //     const { Task_Id, Task_Name, Task_Desc, Under_Task_Id, Task_Group_Id, Entry_By, Det_string } = req.body;
-
-    //     if (isNaN(Task_Id) || !Task_Name || !Task_Desc || isNaN(Under_Task_Id) || isNaN(Task_Group_Id) || isNaN(Entry_By)) {
-    //         return invalidInput(res, 'Task_Name, Task_Desc, Under_Task_Id, Task_Group_Id, Entry_By is required')
-    //     }
-
-    //     try {
-    //         const request = new sql.Request();
-
-    //         request.input('Mode', 2);
-    //         request.input('Task_Id', Task_Id);
-    //         request.input('Task_Name', Task_Name);
-    //         request.input('Task_Desc', Task_Desc);
-    //         request.input('Under_Task_Id', Under_Task_Id)
-    //         request.input('Entry_By', Entry_By);
-    //         request.input('Entry_Date', new Date());
-    //         request.input('Task_Group_Id', Task_Group_Id)
-    //         request.input('Det_string', Det_string || '')
-
-    //         const result = await request.execute('Task_SP');
-
-    //         if (result.rowsAffected.length > 0) {
-    //             return dataFound(res, [], 'Task Updated');
-    //         } else {
-    //             return res.status(400).json({ data: [], message: 'Failed to create Task', success: false })
-    //         }
-
-    //     } catch (e) {
-    //         return servError(e, res)
-    //     }
-    // }
 
     const editTask = async (req, res) => {
         const { Task_Id, Task_Name, Task_Desc, Task_Group_Id, Entry_By, Task_Parameters } = req.body;

@@ -66,7 +66,7 @@ MastersRouter.put('/retailers', retailers.putRetailers);
 MastersRouter.post('/retailers/location', retailers.postLocationForCustomer);
 MastersRouter.put('/retailers/location', retailers.verifyLocation);
 MastersRouter.put('/retailers/visitLogToRetailer', retailers.convertVisitLogToRetailer);
-MastersRouter.get('retailers/closingStock', retailerClosingStock.getClosingStockValues);
+MastersRouter.get('/retailers/closingStock', retailerClosingStock.getClosingStockValues);
 MastersRouter.get('/retailers/closingStock/productBased', retailerClosingStock.getRetailerPreviousClosingStock);
 MastersRouter.get('/retailers/closingStock/myEntry', retailerClosingStock.getSalesPersonEnteredClosingStock);
 MastersRouter.post('/retailers/closingStock', retailerClosingStock.closeingStock);

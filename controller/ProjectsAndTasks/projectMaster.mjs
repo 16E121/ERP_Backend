@@ -46,7 +46,24 @@ const projectController = () => {
         try {
             const result = (await new sql.Request()
                 .input('comp', Company_id)
-                .query(`SELECT * FROM tbl_Project_Master WHERE Company_id = @comp`)
+                .query(`
+                    SELECT 
+                        p.*,
+                        COALESCE(ph.Name, 'NOT FOUND!') AS Project_Head_Name,
+                        COALESCE(eby.Name, 'NOT FOUND!') AS CreatedBy,
+                        COALESCE(uby.Name, 'NOT FOUND!') AS UpdatedBy,
+                        COALESCE(s.Status, 'NOT FOUND!') AS Status
+                    FROM 
+                        tbl_Project_Master AS p
+                        LEFT JOIN tbl_Users AS ph
+                            ON ph.UserId = p.Project_Head
+                        LEFT JOIN tbl_Users AS eby
+                            ON eby.UserId = p.Entry_By
+                        LEFT JOIN tbl_Users AS uby
+                            ON uby.UserId = p.Update_By
+                        LEFT JOIN tbl_Status AS s
+                            ON s.Status_Id = p.Project_Status;
+                `)
             ).recordset
 
             if (result.length > 0) {
@@ -269,8 +286,8 @@ const projectController = () => {
                     WHERE 
                     	p.Project_Status != 3 
                         AND p.Project_Status != 4
-                        AND p.Company_id = @comp
-                            `)
+                        `)
+                        // AND p.Company_id = @comp
             const result = await request;
 
             if (result.recordset.length > 0) {

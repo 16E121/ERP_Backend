@@ -34,9 +34,9 @@ const user = () => {
                 ON ut.Id = u.UserTypeId
                 LEFT JOIN tbl_Company_Master AS c
                 ON c.Company_id = u.Company_Id
-            WHERE 
-                u.Company_Id = @comp 
-                AND UDel_Flag = 0`;
+            WHERE  
+                u.UDel_Flag = 0`;
+                // u.Company_Id = @comp AND
 
             const request = new sql.Request();
             request.input('comp', Company_id);
@@ -171,7 +171,7 @@ const user = () => {
     }
 
     const userDropdown = async (req, res) => {
-        const { Company_id } = req.query;
+        const { Company_id, withAuth } = req.query;
 
         if (!checkIsNumber(Company_id)) {
             return invalidInput(res, 'Company_id is Required')
@@ -180,7 +180,8 @@ const user = () => {
         try {
             const result = (await new sql.Request()
                 .input('Comp', Company_id)
-                .query('SELECT UserId, Name FROM tbl_Users WHERE Company_id = @Comp')
+                .query(`SELECT UserId, Name ${Boolean(withAuth) ? ', Autheticate_Id ' : ''} FROM tbl_Users `)
+                // WHERE Company_id = @Comp
             ).recordset;
 
             if (result.length > 0) {
@@ -213,8 +214,8 @@ const user = () => {
                     WHERE 
                         UserTypeId = 3 
                         AND UDel_Flag = 0 
-                        AND Company_id = @comp
-                    `)
+                        `)
+                        // AND Company_id = @comp
             ).recordset;
 
             if (result.length > 0) {
@@ -245,8 +246,9 @@ const user = () => {
                     WHERE 
                         UserTypeId = 6 
                         AND UDel_Flag = 0 
-                        AND Company_id = @comp`
+                        `
                 )
+                // AND Company_id = @comp
             ).recordset;
 
             if (result.length > 0) {
@@ -281,8 +283,8 @@ const user = () => {
                     	ON b.BranchId = u.BranchId
                     	LEFT JOIN tbl_Company_Master AS c
                     	ON c.Company_id = b.Company_id
-                    WHERE
-                    	c.Company_id = @Company_id`);
+                    `);
+                    // WHERE c.Company_id = @Company_id
 
             if (result.recordset.length > 0) {
                 dataFound(res, result.recordset)

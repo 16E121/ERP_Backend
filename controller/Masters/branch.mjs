@@ -23,10 +23,10 @@ const branchController = () => {
                         tbl_Branch_Master 
                     WHERE 
                         Del_Flag = 0
-                        AND
-                        Company_id = @Comp
-                    `)
-            ).recordset;
+                        `)
+                    ).recordset;
+                    // AND
+                    // Company_id = @Comp
 
             if (branch.length > 0) {
                 dataFound(res, branch)
@@ -39,52 +39,52 @@ const branchController = () => {
     }
 
     const getBranch = async (req, res) => {
-        const { User_Id, Company_id } = req.query;
+        const { Company_id } = req.query;
 
-        if (!User_Id || !Company_id) {
-            return invalidInput(res, 'User_Id, Company_id are required')
+        if (!checkIsNumber(Company_id)) {
+            return invalidInput(res, 'Company_id are required')
         }
 
         try {
-            const request = new sql.Request();
-            request.input('User_Id', User_Id);
-            request.input('Company_id', Company_id);
-            request.input('Branch_Name', "");
-            const result = await request.query(`
-                SELECT 
-                    B.BranchId, 
-                    B.Company_id, 
-                    B.BranchCode, 
-                    B.BranchName, 
-                    B.Tele_Code, 
-                    B.BranchTel1, 
-                    B.Tele1_Code, 
-                    B.BranchTel, 
-                    B.BranchAddress, 
-                    B.E_Mail,
-                    B.BranchIncharge,
-                    B.BranchIncMobile,
-                    B.BranchCity,
-                    B.Pin_Code,
-                    B.State,
-                    B.BranchCountry,
-                    B.Entry_By,
-                    B.Entry_Date,
-                    B.Modified_By, 
-                    B.Modified_Date,
-                    B.Del_Flag,
-                    B.Deleted_By,
-                    B.Deleted_Date,
-                    Company_Code,
-                    Company_Name
-                FROM 
-                    tbl_Branch_Master B,
-                    tbl_Company_Master CM
-                WHERE 
-                    B.Company_id = CM.Company_id
-                    AND 
-                    B.Del_Flag = 0
-                `);
+            const request = new sql.Request()
+                .input('Company_id', Company_id)
+                .query(`
+                    SELECT 
+                        B.BranchId, 
+                        B.Company_id, 
+                        B.BranchCode, 
+                        B.BranchName, 
+                        B.Tele_Code, 
+                        B.BranchTel1, 
+                        B.Tele1_Code, 
+                        B.BranchTel, 
+                        B.BranchAddress, 
+                        B.E_Mail,
+                        B.BranchIncharge,
+                        B.BranchIncMobile,
+                        B.BranchCity,
+                        B.Pin_Code,
+                        B.State,
+                        B.BranchCountry,
+                        B.Entry_By,
+                        B.Entry_Date,
+                        B.Modified_By, 
+                        B.Modified_Date,
+                        B.Del_Flag,
+                        B.Deleted_By,
+                        B.Deleted_Date,
+                        CM.Company_Code,
+                        CM.Company_Name
+                    FROM 
+                        tbl_Branch_Master B,
+                        tbl_Company_Master CM
+                    WHERE 
+                        B.Del_Flag = 0
+                    `);
+                // B.Company_id = CM.Company_id
+                //     AND 
+
+            const result = await request;
 
             if (result.recordset.length > 0) {
                 dataFound(res, result.recordset)

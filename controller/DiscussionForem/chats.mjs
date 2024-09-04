@@ -123,8 +123,7 @@ const ChatController = () => {
         }
 
         try {
-            const transaction = new sql.Transaction();
-            await transaction.begin();
+            const transaction = await new sql.Transaction().begin();
 
             try {
                 await new sql.Request(transaction)
@@ -175,26 +174,27 @@ const ChatController = () => {
 
         try {
 
-            const query = `
-            SELECT 
-            	df.Id AS FileId, 
-            	df.File_Name AS FileName,
-                df.File_Type AS FileType,
-                df.File_Size AS FileSize,
-                u.Name AS SharedBY,
-                df.User_Id AS SenderId,
-                df.CreatedAt AS SendDate
-            FROM 
-            	tbl_Discussion_Files AS df
-            	LEFT JOIN 
-            		tbl_Users AS u ON df.User_Id = u.UserId
-            WHERE 
-            	df.Topic_Id = '${Topic_Id}'
-            ORDER BY 
-                df.CreatedAt DESC`;
+            const request = new sql.Request()
+                .input('Topic_Id', Topic_Id)
+                .query(`
+                    SELECT 
+                    	df.Id AS FileId, 
+                    	df.File_Name AS FileName,
+                        df.File_Type AS FileType,
+                        df.File_Size AS FileSize,
+                        u.Name AS SharedBY,
+                        df.User_Id AS SenderId,
+                        df.CreatedAt AS SendDate
+                    FROM 
+                    	tbl_Discussion_Files AS df
+                    	LEFT JOIN 
+                    		tbl_Users AS u ON df.User_Id = u.UserId
+                    WHERE 
+                    	df.Topic_Id = @Topic_Id
+                    ORDER BY 
+                        df.CreatedAt DESC`);
 
-            const request = new sql.Request();
-            const result = await request.query(query);
+            const result = await request;
 
             if (result.recordset.length > 0) {
                 return dataFound(res, result.recordset)

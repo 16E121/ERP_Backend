@@ -18,6 +18,10 @@ AuthorizationRouter.post('/userRights', appMenu.modifyUserRights);
 AuthorizationRouter.get('/userTypeRights', appMenu.getUserTypeRights);
 AuthorizationRouter.post('/userTypeRights', appMenu.modifyUserTypeRights);
 
+AuthorizationRouter.get('/menuMaster', appMenu.menuMaster);
+AuthorizationRouter.post('/menuMaster', appMenu.createMenu);
+AuthorizationRouter.put('/menuMaster', appMenu.updateMenu);
+
 AuthorizationRouter.get('/companysAccess', companyAccess.getMYCompanyAccess);
 AuthorizationRouter.post('/companysAccess', companyAccess.postCompanyAccess);
 

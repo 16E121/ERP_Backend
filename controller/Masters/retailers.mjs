@@ -7,6 +7,7 @@ import { dirname } from 'path';
 import copyImageMiddleware from '../../middleware/copyMiddleware.mjs';
 import getImage from '../../middleware/getImageIfExist.mjs';
 import dotenv from 'dotenv';
+import { checkIsNumber } from '../../helper_functions.mjs';
 dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
@@ -19,7 +20,7 @@ const RetailerControll = () => {
     const getSFCustomers = async (req, res) => {
         const { Company_Id } = req.query;
 
-        if (isNaN(Company_Id)) {
+        if (!checkIsNumber(Company_Id)) {
             return invalidInput(res, 'Company_Id is required');
         }
 
@@ -33,30 +34,24 @@ const RetailerControll = () => {
                 COALESCE(cm.Company_Name, '') AS Company_Name,
                 COALESCE(modify.Name, '') AS lastModifiedBy,
                 COALESCE(created.Name, '') AS createdBy,
-
-                COALESCE(
-                    (
-                        SELECT 
-                            TOP (1) *
-                        FROM 
-                            tbl_Retailers_Locations
-                        WHERE
-                            Retailer_Id = rm.Retailer_Id
-                            AND
-                            isActiveLocation = 1
-                        FOR JSON PATH, WITHOUT_ARRAY_WRAPPER
-                    ), '{}'
-                ) AS VERIFIED_LOCATION,
-
+                COALESCE((
+                    SELECT 
+                        TOP (1) *
+                    FROM 
+                        tbl_Retailers_Locations
+                    WHERE
+                        Retailer_Id = rm.Retailer_Id
+                        AND
+                        isActiveLocation = 1
+                    FOR JSON PATH, WITHOUT_ARRAY_WRAPPER
+                ), '{}') AS VERIFIED_LOCATION,
                 COALESCE((
                     SELECT
                     	TOP (5) 
                         ml.*,
-
                         COALESCE((
                             SELECT NAME FROM tbl_Users WHERE UserId = ml.EntryBy
                         ), 'unknown') AS EntryByGet
-
                     FROM
                     	tbl_Retailers_Locations AS ml
                     WHERE
@@ -65,7 +60,6 @@ const RetailerControll = () => {
                         CONVERT(DATETIME, EntryAt) DESC
                     FOR JSON PATH
                 ), '[]') AS AllLocations
-            
             FROM
                 tbl_Retailers_Master AS rm
             LEFT JOIN
@@ -86,12 +80,11 @@ const RetailerControll = () => {
             LEFT JOIN
                 tbl_Users AS created
                 ON created.UserId = rm.Created_By
-            
-            WHERE
-                rm.Company_Id = @company
-            
             ORDER BY 
                 rm.Retailer_Name`;
+
+                // WHERE
+                // rm.Company_Id = @company
 
             const request = new sql.Request();
             request.input('company', Company_Id);
@@ -117,7 +110,7 @@ const RetailerControll = () => {
     const getRetailerDropDown = async (req, res) => {
         const { Company_Id } = req.query;
 
-        if (isNaN(Company_Id)) {
+        if (!checkIsNumber(Company_Id)) {
             return invalidInput(res, 'Company_Id is required');
         }
 
@@ -128,8 +121,9 @@ const RetailerControll = () => {
                 Retailer_Name
             FROM 
                 tbl_Retailers_Master
-            WHERE
-                Company_Id = @comp`
+            `
+            // WHERE
+            //     Company_Id = @comp
             const request = new sql.Request();
             request.input('comp', Company_Id);
 
@@ -148,7 +142,7 @@ const RetailerControll = () => {
     const getAreaRetailers = async (req, res) => {
         const { Company_Id } = req.query;
 
-        if (isNaN(Company_Id)) {
+        if (!checkIsNumber(Company_Id)) {
             return invalidInput(res, 'Company_Id is required');
         }
 
@@ -203,12 +197,12 @@ const RetailerControll = () => {
                             ON created.UserId = rm.Created_By
             		WHERE
             			rm.Area_Id = a.Area_Id
-            			AND
-            			rm.Company_Id = @comp
             		FOR JSON PATH
             	), '[]') AS Area_Retailers
             FROM
             	tbl_Area_Master AS a`;
+            			// AND
+            			// rm.Company_Id = @comp
 
             const request = new sql.Request();
             request.input('comp', Company_Id);
@@ -275,7 +269,7 @@ const RetailerControll = () => {
     const verifyLocation = async (req, res) => {
         const { Id } = req.body;
 
-        if (!Id) {
+        if (!checkIsNumber(Id)) {
             return invalidInput(res, 'location Id is required')
         }
 
@@ -497,7 +491,7 @@ const RetailerControll = () => {
     const getRetailerInfo = async (req, res) => {
         const { Retailer_Id } = req.query;
 
-        if (isNaN(Retailer_Id)) {
+        if (!checkIsNumber(Retailer_Id)) {
             return invalidInput(res, 'Retailer_Id is required')
         }
 
@@ -511,21 +505,17 @@ const RetailerControll = () => {
                 COALESCE(cm.Company_Name, '') AS Company_Name,
                 COALESCE(modify.Name, '') AS lastModifiedBy,
                 COALESCE(created.Name, '') AS createdBy,
-
-                COALESCE(
-                    (
-                        SELECT 
-                            TOP (1) *
-                        FROM 
-                            tbl_Retailers_Locations
-                        WHERE
-                            Retailer_Id = rm.Retailer_Id
-                            AND
-                            isActiveLocation = 1
-                        FOR JSON PATH, WITHOUT_ARRAY_WRAPPER
-                    ), '{}'
-                ) AS VERIFIED_LOCATION
-            
+                COALESCE((
+                    SELECT 
+                        TOP (1) *
+                    FROM 
+                        tbl_Retailers_Locations
+                    WHERE
+                        Retailer_Id = rm.Retailer_Id
+                        AND
+                        isActiveLocation = 1
+                    FOR JSON PATH, WITHOUT_ARRAY_WRAPPER
+                ), '{}') AS VERIFIED_LOCATION
             FROM
                 tbl_Retailers_Master AS rm
             
@@ -576,7 +566,7 @@ const RetailerControll = () => {
     const getRetailerInfoWithClosingStock = async (req, res) => {
         const { Retailer_Id, Fromdate, Todate } = req.query;
 
-        if (isNaN(Retailer_Id)) {
+        if (!checkIsNumber(Retailer_Id)) {
             return invalidInput(res, 'Retailer_Id is required')
         }
 

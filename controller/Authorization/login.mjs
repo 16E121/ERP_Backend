@@ -1,6 +1,6 @@
 import sql from 'mssql'
 import { servError, dataFound, failed, invalidInput } from '../../res.mjs';
-import { decryptPasswordFun, encryptPasswordFun, LocalDateTime } from '../../helper_functions.mjs';
+import { decryptPasswordFun, LocalDateTime } from '../../helper_functions.mjs';
 
 const LoginController = () => {
 

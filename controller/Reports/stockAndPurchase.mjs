@@ -73,17 +73,17 @@ const StockAndPurchaseReport = () => {
 
     const salesReport = async (req, res) => {
         const { Fromdate, Todate } = req.query;
-
         try {
     
             const DynamicDB = new sql.Request(req.db)
                 .input('Fromdate', Fromdate)
                 .input('To_date', Todate)
                 .execute('Avg_Live_Sales_Report')
-
+    
             const result = await DynamicDB;
-            if (result.recordset.length > 0) {
-                dataFound(res, result.recordset)
+
+            if (result.recordsets[0].length > 0) {
+                dataFound(res, result.recordsets[0], 'dataFound', { ledgerDetails: result.recordsets[1] })
             } else {
                 noData(res)
             }
@@ -139,12 +139,40 @@ const StockAndPurchaseReport = () => {
         }
     }
 
+    const externalAPIPurchase = async (req, res) => {
+        try {
+            const { Fromdate, Todate } = req.query;
+
+            if (!Fromdate, !Todate) {
+                return invalidInput(res, 'Fromdate, Todate is required')
+            }
+    
+            const request = new sql.Request()
+                .input('Company_Id', 5)
+                .input('Vouche_Id', 0)
+                .input('Fromdate', Fromdate)
+                .input('Todate', Todate)
+                .execute('Online_Purchase_API')
+    
+            const result = await request;
+            if (result.recordset.length > 0) {
+                const sales = JSON.parse(result.recordset[0]?.SALES)
+                dataFound(res, sales)
+            } else {
+                noData(res)
+            }
+        } catch (e) {
+            servError(e, res)
+        }
+    }
+
     return {
         stockReport,
         purchaseReport,
         externalAPI,
         salesReport,
         porductBasedSalesResult,
+        externalAPIPurchase
     }
 }
 

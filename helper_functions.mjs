@@ -12,6 +12,24 @@ export const decryptPasswordFun = (str) => {
     return decryptedText;
 }
 
+// import CryptoJS from "crypto-js";
+// import dotenv from 'dotenv';
+// dotenv.config();
+
+// export const encryptPasswordFun = (str) => {
+//     if (!str) throw new Error('No string provided for encryption');
+//     if (!process.env.passwordKey) throw new Error('No encryption key provided');
+//     return CryptoJS.AES.encrypt(str, process.env.passwordKey).toString();
+// };
+
+// export const decryptPasswordFun = (cipherText) => {
+//     if (!cipherText) throw new Error('No cipher text provided for decryption');
+//     if (!process.env.passwordKey) throw new Error('No decryption key provided');
+//     const bytes = CryptoJS.AES.decrypt(cipherText, process.env.passwordKey);
+//     return bytes.toString(CryptoJS.enc.Utf8);
+// };
+
+
 
 export const isValidDate = (dateString) => {
     const timestamp = Date.parse(dateString);

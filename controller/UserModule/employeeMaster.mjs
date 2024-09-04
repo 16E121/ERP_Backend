@@ -95,14 +95,6 @@ const EmployeeController = () => {
 
             zeros = String(maxId).padStart(4, '0');
 
-            // if (maxId < 10) {
-            //     zeros = '000';
-            // } else if (maxId < 100) {
-            //     zeros = '00';
-            // } else if (maxId < 1000) {
-            //     zeros = '0';
-            // }
-
             const transaction = new sql.Transaction();
 
             try {
@@ -153,8 +145,7 @@ const EmployeeController = () => {
                     .input('Due_Loan', data.due_loan)
                     .input('User_Mgt_Id', userId)
                     .input('Entry_By', data.enter_by)
-                    .query(
-                        `
+                    .query(`
                     INSERT INTO tbl_Employee_Master
                         (
                             Emp_Id, Branch, Emp_Code, Emp_Name, Designation, DOB, DOJ, Address_1, Address_2, City,

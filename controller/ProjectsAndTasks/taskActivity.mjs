@@ -1,5 +1,5 @@
 import sql from 'mssql';
-import { checkIsNumber, ISOString } from '../../helper_functions.mjs';
+import { checkIsNumber } from '../../helper_functions.mjs';
 import { dataFound, noData, success, failed, servError, invalidInput } from '../../res.mjs';
 
 const TaskActivity = () => {
@@ -201,11 +201,12 @@ const TaskActivity = () => {
                     tbl_Work_Master AS td
                     LEFT JOIN tbl_Users AS u
                     ON u.UserId = td.Emp_Id
-                WHERE
-                    u.Company_Id = @Comp
                 GROUP BY
                     td.Emp_Id,
                     u.Name`);
+                    
+                // WHERE
+                // u.Company_Id = @Comp
 
             if (result.recordset.length > 0) {
                 dataFound(res, result.recordset)

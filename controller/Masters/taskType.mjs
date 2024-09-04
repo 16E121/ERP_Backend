@@ -6,7 +6,7 @@ const taskTypeControlelr = () => {
 
     const TaskTypeDropDown = async (req, res) => {
         try {
-            const query = `SELECT Task_Type_Id, Task_Type FROM tbl_Task_Type WHERE Task_Type_Id != 0 ORDER BY Task_Type`;
+            const query = `SELECT Task_Type_Id, Task_Type FROM tbl_Task_Type ORDER BY Task_Type`;
 
             const request = new sql.Request();
             const result = await request.query(query);

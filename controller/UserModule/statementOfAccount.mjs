@@ -9,7 +9,7 @@ const CustomerAPIs = () => {
         const { UserId } = req.query;
 
         try {
-            if (!UserId) {
+            if (!checkIsNumber(UserId)) {
                 return res.status(400).json({ data: [], status: 'Failure', message: 'UserId is required', isCustomer: false });
             }
             
@@ -58,7 +58,7 @@ const CustomerAPIs = () => {
     const StatementOfAccound = async (req, res) => {
         const { Cust_Id, Acc_Id, Company_Id, Fromdate, Todate } = req.query;
 
-        if (!checkIsNumber(Cust_Id) || !checkIsNumber(!Acc_Id) || !checkIsNumber(!Company_Id) || !Fromdate || !Todate) {
+        if (!checkIsNumber(Cust_Id) || !checkIsNumber(Acc_Id) || !checkIsNumber(Company_Id) || !Fromdate || !Todate) {
             return invalidInput(res, 'Cust_Id, Acc_Id, Company_Id, Fromdate, Todate are Required')
         }
 

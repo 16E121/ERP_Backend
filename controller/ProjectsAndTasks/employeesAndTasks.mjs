@@ -137,7 +137,7 @@ const EmployeeAndTasks = () => {
             const result = await request;
 
             if (result.recordset.length > 0) {
-                return dataFound(res, result.recordset)
+                return dataFound(res, result.recordset.map(o => ({...o, Param_Dts: JSON.parse(o.Param_Dts)})))
             } else {
                 return noData(res)
             }

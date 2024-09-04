@@ -247,7 +247,7 @@ const SaleOrder = () => {
             	ON cb.UserId = so.Created_by
                         
             WHERE
-            	so.Company_Id = @comp
+            	so.Company_Id IS NOT NULL
             `;
 
             if (Fromdate && Todate) {

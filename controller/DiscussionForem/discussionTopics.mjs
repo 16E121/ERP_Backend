@@ -42,10 +42,10 @@ const TopicsController = () => {
                         tbl_Discussion_Topics AS d
                     WHERE 
                         d.IsActive = 1
-                        AND
-                        d.Company_id = @comp
                     ORDER BY 
                         d.CreatedAt DESC`)
+                        // AND
+                        // d.Company_id = @comp
             const result = await request;
 
             if (result.recordset.length > 0) {

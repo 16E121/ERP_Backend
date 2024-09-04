@@ -13,7 +13,12 @@ const CustomerMaster = () => {
                     u.Name AS NameGet, 
                     ut.UserType AS UserTypeGet, 
                     e.Name AS EnteyByGet, 
-                    case when cus1.Customer_name is null then 'Primary' else cus1.Customer_name end as underGet
+                    case when cus1.Customer_name is null 
+                    then 'Primary' else cus1.Customer_name end as underGet,
+                    u.Company_Id,
+                    c.Company_Name, 
+                    u.BranchId AS Branch_Id,
+                    b.BranchName
                 FROM tbl_Customer_Master AS cus 
                 JOIN tbl_Users as u
                     ON cus.User_Mgt_Id = u.UserId
@@ -23,6 +28,10 @@ const CustomerMaster = () => {
                     ON cus.Entry_By = e.UserId
                 LEFT JOIN tbl_Customer_Master cus1
                     ON cus.Under_Id = cus1.Cust_Id
+                LEFT JOIN tbl_Company_Master c
+                    ON c.Company_id = u.Company_Id
+                LEFT JOIN tbl_Branch_Master b
+                    ON b.BranchId = u.BranchId
                 ORDER BY cus.Customer_name ASC`;
 
             const result = await sql.query(customerGet)
