@@ -2,3 +2,4 @@
 /package-lock.json
 .env
 /logs/access.log
+/uploads
