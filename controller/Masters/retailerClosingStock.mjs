@@ -51,7 +51,7 @@ const ClosingStockControll = () => {
                     const insertDetailsRequest = new sql.Request(transaction);
                     insertDetailsRequest.input('stId', stId);
                     insertDetailsRequest.input('comp', Company_Id);
-                    insertDetailsRequest.input('sNo', i + 1); 
+                    insertDetailsRequest.input('sNo', i + 1);
                     insertDetailsRequest.input('itemId', product.Product_Id);
                     insertDetailsRequest.input('qty', product.ST_Qty);
                     insertDetailsRequest.input('pre', product.PR_Qty || 0);
@@ -218,20 +218,162 @@ const ClosingStockControll = () => {
         }
     }
 
+    const closingStockAreaBased = async (req, res) => {
+        const { Company_id } = req.query;
+
+        if (!checkIsNumber(Company_id)) {
+            return invalidInput(res, 'Company_id is required');
+        }
+
+        try {
+
+            const request = new sql.Request()
+                .input('comp', Company_id)
+                .query(`
+                    WITH AreasList AS (
+                    	SELECT * FROM tbl_Area_Master
+                    ), RetailerList As (
+                    	SELECT * FROM tbl_Retailers_Master
+                    ), ProductRateList AS (
+                        SELECT * FROM tbl_Pro_Rate_Master
+                    )
+                    SELECT 
+                    	a.*,
+                    	COALESCE((
+                            SELECT
+                                r.Retailer_Id,
+                                r.Retailer_Name,
+                                r.Reatailer_Address,
+                                r.Mobile_No,
+                                r.Latitude,
+                                r.Longitude,
+                                COALESCE((
+                                    SELECT 
+                                        pre.*,
+                                        pm.Product_Name,
+                                        COALESCE((
+                                            SELECT 
+                                                TOP (1) Product_Rate 
+                                            FROM 
+                                                ProductRateList 
+                                            WHERE 
+                                                Product_Id = pre.Item_Id
+                                            ORDER BY
+                                                CONVERT(DATETIME, Rate_Date) DESC
+                                        ), 0) AS Item_Rate 
+                                    FROM 
+                                        Previous_Stock_Fn_1(CONVERT(DATE, GETDATE()), r.Retailer_Id) AS pre
+                                        LEFT JOIN tbl_Product_Master AS pm
+                                        ON pm.Product_Id = pre.Item_Id
+                                    WHERE 
+                                        pre.Previous_Balance * COALESCE((
+                                            SELECT 
+                                                TOP (1) Product_Rate 
+                                            FROM 
+                                                ProductRateList 
+                                            WHERE 
+                                                Product_Id = pre.Item_Id
+                                            ORDER BY
+                                                CONVERT(DATETIME, Rate_Date) DESC
+                                        ), 0) > 0
+                                    FOR JSON PATH
+                                ), '[]') AS Closing_Stock
+                            FROM
+                                tbl_Retailers_Master AS r
+                            WHERE
+                                a.Area_Id = r.Area_Id
+                                AND EXISTS (
+                                    SELECT 1
+                                    FROM 
+                                        Previous_Stock_Fn_1(CONVERT(DATE, GETDATE()), r.Retailer_Id) AS pre
+                                    WHERE 
+                                        pre.Previous_Balance * COALESCE((
+                                            SELECT 
+                                                TOP (1) Product_Rate 
+                                            FROM 
+                                                ProductRateList 
+                                            WHERE 
+                                                Product_Id = pre.Item_Id
+                                            ORDER BY
+                                                CONVERT(DATETIME, Rate_Date) DESC
+                                        ), 0) > 0
+                                )
+                            FOR JSON PATH
+                        ), '[]') AS Retailer
+                    FROM 
+                    	AreasList AS a
+                    WHERE
+                    	EXISTS (
+                            SELECT 1
+                            FROM
+                                RetailerList AS r
+                            WHERE
+                                a.Area_Id = r.Area_Id
+                                AND EXISTS (
+                                    SELECT 1
+                                    FROM 
+                                        Previous_Stock_Fn_1(CONVERT(DATE, GETDATE()), r.Retailer_Id) AS pre
+                                    WHERE 
+                                        pre.Previous_Balance * COALESCE((
+                                            SELECT 
+                                                TOP (1) Product_Rate 
+                                            FROM 
+                                                ProductRateList 
+                                            WHERE 
+                                                Product_Id = pre.Item_Id
+                                            ORDER BY
+                                                CONVERT(DATETIME, Rate_Date) DESC
+                                        ), 0) > 0
+                                )
+                        )
+                    `)
+
+                    // 277
+                    // AND
+                    // r.Company_Id = @comp
+
+                    // 304
+                    // AND
+                    // r.Company_Id = @comp
+
+            const result = await request;
+
+            if (result.recordset.length > 0) {
+                const parsed = result.recordset.map(o => ({
+                    ...o,
+                    Retailer: JSON.parse(o?.Retailer)
+                }));
+                const parsed2 = parsed.map(o => ({
+                    ...o,
+                    Retailer: o?.Retailer?.map(oo => ({
+                        ...oo,
+                        Closing_Stock: JSON.parse(oo?.Closing_Stock)
+                    }))
+                }))
+                dataFound(res, parsed2);
+            } else {
+                noData(res)
+            }
+        } catch (e) {
+            servError(e, res);
+        }
+    }
+
+
     const closeingStockUpdate = async (req, res) => {
         const { Company_Id, ST_Date, Retailer_Id, Narration, Created_by, Product_Stock_List, ST_Id } = req.body;
-    
+
         try {
             if (!checkIsNumber(Company_Id) || !checkIsNumber(Retailer_Id) || !checkIsNumber(Created_by) || !Array.isArray(Product_Stock_List)) {
                 return invalidInput(res, 'Invalid input data');
             }
-    
+
             const transaction = new sql.Transaction();
-    
+
             await transaction.begin();
-    
+
             try {
-    
+
                 const genInfoUpdateRequest = new sql.Request(transaction);
                 genInfoUpdateRequest.input('comp', Company_Id);
                 genInfoUpdateRequest.input('date', ST_Date ? new Date(ST_Date) : new Date());
@@ -240,7 +382,7 @@ const ClosingStockControll = () => {
                 genInfoUpdateRequest.input('created_by', Created_by);
                 genInfoUpdateRequest.input('created_on', new Date());
                 genInfoUpdateRequest.input('stid', ST_Id);
-    
+
                 await genInfoUpdateRequest.query(`
                     UPDATE 
                         tbl_Closing_Stock_Gen_Info 
@@ -253,7 +395,7 @@ const ClosingStockControll = () => {
                         Alterd_date = @created_on
                     WHERE 
                         ST_Id = @stid`);
-    
+
                 const deleteDetailsRequest = new sql.Request(transaction);
                 deleteDetailsRequest.input('stId', ST_Id);
                 await deleteDetailsRequest.query(`
@@ -261,14 +403,14 @@ const ClosingStockControll = () => {
                         tbl_Closing_Stock_Info 
                     WHERE 
                         ST_Id = @stId`);
-    
+
                 for (let i = 0; i < Product_Stock_List.length; i++) {
                     const product = Product_Stock_List[i];
 
                     const insertDetailsRequest = new sql.Request(transaction);
                     insertDetailsRequest.input('stId', ST_Id);
                     insertDetailsRequest.input('comp', Company_Id);
-                    insertDetailsRequest.input('sNo', i + 1); 
+                    insertDetailsRequest.input('sNo', i + 1);
                     insertDetailsRequest.input('itemId', product.Product_Id);
                     insertDetailsRequest.input('qty', product.ST_Qty || 0);
                     insertDetailsRequest.input('pre', product.PR_Qty || 0);
@@ -281,7 +423,7 @@ const ClosingStockControll = () => {
                         VALUES
                             (@stId, @comp, @sNo, @itemId, @qty, @pre, @cl_date)`);
                 }
-    
+
                 await transaction.commit();
                 success(res, 'Closing stock updated successfully');
             } catch (e) {
@@ -298,6 +440,7 @@ const ClosingStockControll = () => {
         getRetailerPreviousClosingStock,
         getClosingStockValues,
         getSalesPersonEnteredClosingStock,
+        closingStockAreaBased,
         closeingStockUpdate,
     }
 

@@ -16,14 +16,12 @@ const projectController = () => {
             const result = (await new sql.Request()
                 .input('comp', Company_id)
                 .query(`
-                    SELECT 
-                        Project_Id, Project_Name
-                    FROM
-                        tbl_Project_Master
-                    WHERE
-                        Company_id = @comp
-                    `)
-            ).recordset
+                    SELECT Project_Id, Project_Name
+                    FROM tbl_Project_Master
+                    WHERE p.IsActive = 1`)
+            ).recordset;
+            // WHERE
+            // Company_id = @comp
 
             if (result.length > 0) {
                 dataFound(res, result);
@@ -62,7 +60,8 @@ const projectController = () => {
                         LEFT JOIN tbl_Users AS uby
                             ON uby.UserId = p.Update_By
                         LEFT JOIN tbl_Status AS s
-                            ON s.Status_Id = p.Project_Status;
+                            ON s.Status_Id = p.Project_Status
+                    WHERE p.IsActive = 1;
                 `)
             ).recordset
 
@@ -80,84 +79,130 @@ const projectController = () => {
         const { Project_Name, Project_Desc, Project_Head, Est_Start_Dt, Est_End_Dt, Project_Status, Entry_By, Company_id } = req.body;
 
         if (!Project_Name || !checkIsNumber(Company_id)) {
-            return invalidInput(res, 'Project_Name, Company_id is required')
+            return invalidInput(res, 'Project_Name and Company_id are required');
         }
 
+        const transaction = new sql.Transaction();
         try {
-            const request = new sql.Request()
-                .input('Project_Name', Project_Name)
-                .input('Project_Desc', Project_Desc)
-                .input('Company_id', Company_id)
-                .input('Project_Head', Project_Head)
-                .input('Est_Start_Dt', Est_Start_Dt)
-                .input('Est_End_Dt', Est_End_Dt)
-                .input('Project_Status', Project_Status)
-                .input('Entry_By', Entry_By)
-                .input('Entry_Date', new Date())
+            await transaction.begin();
+
+            const request = await new sql.Request(transaction)
+                .input('Project_Name', sql.VarChar, Project_Name)
+                .input('Project_Desc', sql.Text, Project_Desc)
+                .input('Company_id', sql.Int, Company_id)
+                .input('Project_Head', sql.VarChar, Project_Head)
+                .input('Est_Start_Dt', sql.Date, Est_Start_Dt)
+                .input('Est_End_Dt', sql.Date, Est_End_Dt)
+                .input('Project_Status', sql.VarChar, Project_Status)
+                .input('Entry_By', sql.VarChar, Entry_By)
+                .input('Entry_Date', sql.DateTime, new Date())
                 .query(`
-                    INSERT INTO tbl_Project_Master
-                        (Project_Name, Project_Desc, Company_id, Project_Head, Est_Start_Dt, Est_End_Dt, Project_Status, Entry_By, Entry_Date)
-                        VALUES
-                        (@Project_Name, @Project_Desc, @Company_id, @Project_Head, @Est_Start_Dt, @Est_End_Dt, @Project_Status, @Entry_By, @Entry_Date)
-                    `)
+                    INSERT INTO tbl_Project_Master (
+                        Project_Name, Project_Desc, Company_id, Project_Head, Est_Start_Dt, Est_End_Dt, Project_Status, Entry_By, Entry_Date
+                    ) VALUES (
+                        @Project_Name, @Project_Desc, @Company_id, @Project_Head, @Est_Start_Dt, @Est_End_Dt, @Project_Status, @Entry_By, @Entry_Date
+                    );
+                    SELECT SCOPE_IDENTITY() AS ProjectId
+                `);
 
-            const result = await request;
-
-            if (result.rowsAffected.length > 0) {
-                success(res, 'Project added successfully');
-            } else {
-                failed(res, 'Failed to add project');
+            const { recordset, rowsAffected } = request;
+            if (rowsAffected[0] === 0) {
+                throw new Error('Failed to add project');
             }
-        } catch (e) {
-            servError(e, res)
+
+            const ProjectId = recordset[0]?.ProjectId;
+
+            const DiscussionTopicCreation = await new sql.Request(transaction)
+                .input('Topic', sql.VarChar, Project_Name)
+                .input('Description', sql.Text, 'The Discussion Forum for the project: ' + Project_Name)
+                .input('Company_id', sql.Int, Company_id)
+                .input('CreatedAt', sql.DateTime, new Date())
+                .input('IsActive', sql.Bit, 1)
+                .input('Project_Id', sql.Int, ProjectId)
+                .query(`
+                    INSERT INTO tbl_Discussion_Topics (
+                        Topic, Description, Company_id, CreatedAt, IsActive, Project_Id
+                    ) VALUES (
+                        @Topic, @Description, @Company_id, @CreatedAt, @IsActive, @Project_Id
+                    )
+                `);
+
+            if (DiscussionTopicCreation.rowsAffected[0] === 0) {
+                throw new Error('Failed to create Discussion Forum');
+            }
+
+            await transaction.commit();
+            return success(res, 'Project and Discussion Forum created successfully');
+
+        } catch (error) {
+            await transaction.rollback();
+            return servError(error, res);
         }
     };
 
     const editProject = async (req, res) => {
-        const { Project_Id, Project_Name, Project_Desc, Base_Type, Project_Head, Est_Start_Dt, Est_End_Dt, Project_Status, Entry_By } = req.body;
+        const { Project_Id, Project_Name, Project_Desc, Project_Head, Est_Start_Dt, Est_End_Dt, Project_Status, Entry_By } = req.body;
 
         if (!Project_Id || !Project_Name) {
-            return res.status(400).json({ success: false, message: 'Project_Id, Project_Name is Required', data: [] });
+            return invalidInput(res, 'Project_Id and Project_Name are required');
         }
 
+        const transaction = new sql.Transaction();
         try {
-            const request = new sql.Request()
-                .input('Project_Id', Project_Id)
-                .input('Project_Name', Project_Name)
-                .input('Project_Desc', Project_Desc)
-                .input('Project_Head', Project_Head)
-                .input('Est_Start_Dt', Est_Start_Dt)
-                .input('Est_End_Dt', Est_End_Dt)
-                .input('Project_Status', Project_Status)
-                .input('Update_By', Entry_By)
-                .input('Update_Date', new Date())
+            await transaction.begin();
+
+            const updateProjectRequest = await new sql.Request(transaction)
+                .input('Project_Id', sql.Int, Project_Id)
+                .input('Project_Name', sql.VarChar, Project_Name)
+                .input('Project_Desc', sql.Text, Project_Desc)
+                .input('Project_Head', sql.Int, Project_Head)
+                .input('Est_Start_Dt', sql.Date, Est_Start_Dt)
+                .input('Est_End_Dt', sql.Date, Est_End_Dt)
+                .input('Project_Status', sql.Int, Project_Status)
+                .input('Update_By', sql.Int, Entry_By)
+                .input('Update_Date', sql.DateTime, new Date())
                 .query(`
-                        UPDATE
-                            tbl_Project_Master
-                        SET
-                            Project_Name = @Project_Name,
-                            Project_Desc = @Project_Desc,
-                            Project_Head = @Project_Head,
-                            Est_Start_Dt = @Est_Start_Dt,
-                            Est_End_Dt = @Est_End_Dt,
-                            Project_Status = @Project_Status,
-                            Update_By = @Update_By,
-                            Update_Date = @Update_Date
-                        WHERE
-                            Project_Id = @Project_Id
-                    `)
+                    UPDATE tbl_Project_Master
+                    SET
+                        Project_Name = @Project_Name,
+                        Project_Desc = @Project_Desc,
+                        Project_Head = @Project_Head,
+                        Est_Start_Dt = @Est_Start_Dt,
+                        Est_End_Dt = @Est_End_Dt,
+                        Project_Status = @Project_Status,
+                        Update_By = @Update_By,
+                        Update_Date = @Update_Date
+                    WHERE Project_Id = @Project_Id
+                `);
 
-            const result = await request;
-
-            if (result.rowsAffected.length > 0) {
-                success(res, 'Changes Saved!')
-            } else {
-                failed(res, 'Failed to Save')
+            if (updateProjectRequest.rowsAffected[0] === 0) {
+                throw new Error('Failed to update project');
             }
+
+            const updateDiscussionForumRequest = await new sql.Request(transaction)
+                .input('Topic', sql.VarChar, Project_Name)
+                .input('Description', sql.Text, 'Created Discussion Forum for the project: ' + Project_Name)
+                .input('Project_Id', sql.Int, Project_Id)
+                .query(`
+                    UPDATE tbl_Discussion_Topics
+                    SET
+                        Topic = @Topic,
+                        Description = @Description
+                    WHERE Project_Id = @Project_Id
+                `);
+
+            if (updateDiscussionForumRequest.rowsAffected[0] === 0) {
+                throw new Error('Failed to update Discussion Forum');
+            }
+
+            await transaction.commit();
+            return success(res, 'Project and Discussion Forum updated successfully');
+
         } catch (e) {
-            servError(e, res)
+            await transaction.rollback();
+            return servError(e, res);
         }
-    }
+    };
 
     const deleteProject = async (req, res) => {
         const { Project_Id } = req.body;
@@ -169,14 +214,30 @@ const projectController = () => {
         try {
             const request = new sql.Request()
                 .input('Project_Id', Project_Id)
-                .query(`DELETE FROM tbl_Project_Master WHERE Project_Id = @Project_Id`)
+                .query(`
+                    UPDATE tbl_Project_Master
+                    SET
+                        IsActive = 0
+                    WHERE Project_Id = @Project_Id;
+
+                    UPDATE tbl_Discussion_Topics
+                    SET
+                        IsActive = 0
+                    WHERE Project_Id = @Project_Id;
+                `)
 
             const result = await request;
 
-            if (result.rowsAffected.length > 0) {
-                success(res, 'Project Deleted!')
+            let messageText = 'Project';
+
+            if (result.rowsAffected[0] > 0) {
+                if (result.rowsAffected[1] > 0) {
+                    messageText += ' and discussion topics are'
+                }
+                messageText += ' set to inactive'
+                success(res, messageText)
             } else {
-                failed(res, 'Failed to Delete')
+                failed(res, 'Failed to remove project')
             }
         } catch (e) {
             servError(e, res);
@@ -287,7 +348,7 @@ const projectController = () => {
                     	p.Project_Status != 3 
                         AND p.Project_Status != 4
                         `)
-                        // AND p.Company_id = @comp
+            // AND p.Company_id = @comp
             const result = await request;
 
             if (result.recordset.length > 0) {

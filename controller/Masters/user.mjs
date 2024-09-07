@@ -261,6 +261,41 @@ const user = () => {
         }
     }
 
+    const getSalesPersonAndEmployeeDropdown = async (req, res) => {
+        const { Company_id } = req.query;
+
+        if (!checkIsNumber(Company_id)) {
+            return invalidInput(res, 'Company_id is Required')
+        }
+
+        try {
+            const result = (await new sql.Request()
+                .input('comp', Company_id)
+                .query(`
+                    SELECT 
+                        UserId, Name 
+                    FROM 
+                        tbl_Users 
+                    WHERE 
+                        UserTypeId = 6 
+                        OR
+                        UserTypeId = 3 
+                        AND UDel_Flag = 0 
+                        `
+                )
+                // AND Company_id = @comp
+            ).recordset;
+
+            if (result.length > 0) {
+                dataFound(res, result)
+            } else {
+                noData(res)
+            }
+        } catch (e) {
+            servError(e, res);
+        }
+    }
+
     const customUserGet = async (req, res) => {
         const { Company_id } = req.query;
 
@@ -340,6 +375,7 @@ const user = () => {
         userDropdown,
         employeeDropDown,
         getSalesPersonDropdown,
+        getSalesPersonAndEmployeeDropdown,
         customUserGet,
         changePassword,
     }

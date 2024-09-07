@@ -34,6 +34,7 @@ MastersRouter.delete('/users', user.deleteUser);
 MastersRouter.get('/user/dropDown', user.userDropdown);
 MastersRouter.get('/users/customUsers', user.customUserGet);
 MastersRouter.get('/users/employee/dropDown', user.employeeDropDown);
+MastersRouter.get('/users/employeeAndSalesPerson/dropDown', user.getSalesPersonAndEmployeeDropdown);
 MastersRouter.get('/users/salesPerson/dropDown', user.getSalesPersonDropdown);
 MastersRouter.put('/users/changePassword', user.changePassword);
 
@@ -68,6 +69,7 @@ MastersRouter.put('/retailers/location', retailers.verifyLocation);
 MastersRouter.put('/retailers/visitLogToRetailer', retailers.convertVisitLogToRetailer);
 MastersRouter.get('/retailers/closingStock', retailerClosingStock.getClosingStockValues);
 MastersRouter.get('/retailers/closingStock/productBased', retailerClosingStock.getRetailerPreviousClosingStock);
+MastersRouter.get('/retailers/closingStock/areaBased', retailerClosingStock.closingStockAreaBased);
 MastersRouter.get('/retailers/closingStock/myEntry', retailerClosingStock.getSalesPersonEnteredClosingStock);
 MastersRouter.post('/retailers/closingStock', retailerClosingStock.closeingStock);
 MastersRouter.put('/retailers/closingStock', retailerClosingStock.closeingStockUpdate);

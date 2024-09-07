@@ -40,7 +40,7 @@ export function servError(e, res, message, others) {
         data: [],
         success: false,
         message: message || "Request Failed",
-        others: { ...others } || {}
+        others: { Error: e, ...others } || {}
     })
 }
 

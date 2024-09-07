@@ -80,6 +80,8 @@ const branchController = () => {
                         tbl_Company_Master CM
                     WHERE 
                         B.Del_Flag = 0
+                        AND
+                        CM.Company_id = B.Company_id
                     `);
                 // B.Company_id = CM.Company_id
                 //     AND 

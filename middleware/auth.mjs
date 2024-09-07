@@ -1,33 +1,31 @@
 import sql from 'mssql'
+import { failed, servError } from '../res.mjs';
 
 const authenticateToken = async (req, res, next) => {
-  try {
-    let databaseToken = '';
-    const clientToken = req.header('Authorization');
 
-    if (!clientToken) {
-      return res.status(401).json({ data: [], message: 'Unauthorized', success: false });
+    try {
+        const clientToken = req.header('Authorization');
+
+        if (!clientToken) {
+            return failed(res, 'Failed to authorize');
+        }
+
+        const request = new sql.Request()
+            .input('clientToken', clientToken)
+            .query(`SELECT 1 FROM tbl_Users WHERE Autheticate_Id = @clientToken`)
+
+        const result = await request;
+
+        if (result.recordset.length > 0) {
+            next();
+        } else {
+            return res.status(403).json({ data: [], message: 'Forbidden', success: false });
+        }
+
+    } catch (e) {
+        return servError(e, res);
     }
 
-    const query = 'SELECT Autheticate_Id FROM tbl_Users WHERE Autheticate_Id = @clientToken';
-    const request = new sql.Request();
-    request.input('clientToken', clientToken);
-
-    const result = await request.query(query);
-
-    if (result.recordset.length > 0) {
-      databaseToken = result.recordset[0].Autheticate_Id;
-    }
-
-    if (clientToken === databaseToken) {
-      next();
-    } else {
-      return res.status(403).json({ data: [], message: 'Forbidden', success: false });
-    }
-  } catch (error) {
-    console.error('Error during authentication:', error);
-    return res.status(500).json({ message: 'Internal Server Error', success: false, data: [] });
-  }
 };
 
-export default authenticateToken()
+export default authenticateToken;

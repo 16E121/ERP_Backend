@@ -10,7 +10,7 @@ const CustomerAPIs = () => {
 
         try {
             if (!checkIsNumber(UserId)) {
-                return res.status(400).json({ data: [], status: 'Failure', message: 'UserId is required', isCustomer: false });
+                return res.status(400).json({ data: [], success: false, message: 'UserId is required', isCustomer: false });
             }
             
             const result = await new sql.Request()
@@ -18,7 +18,7 @@ const CustomerAPIs = () => {
                 .query(`SELECT Cust_Id FROM tbl_Customer_Master WHERE User_Mgt_Id = @UserId`);
 
             if (result.recordset.length === 0) {
-                return res.status(404).json({ data: [], status: 'Failure', message: 'Customer Not Found', isCustomer: false });
+                return res.status(404).json({ data: [], success: false, message: 'Customer Not Found', isCustomer: false });
             }
 
             const Cust_Id = result.recordset[0].Cust_Id;
@@ -29,7 +29,7 @@ const CustomerAPIs = () => {
             const CustInfo = await GetCustDetails.execute('Customer_Deatils_By_Cust_Id');
 
             if (CustInfo.recordset.length === 0) {
-                return res.status(404).json({ data: [], status: 'Failure', message: 'Customer Details Not Found', isCustomer: true });
+                return res.status(404).json({ data: [], success: false, message: 'Customer Details Not Found', isCustomer: true });
             }
 
             const recordsetArray = await Promise.all(CustInfo.recordset.map(async (obj) => {
@@ -42,14 +42,14 @@ const CustomerAPIs = () => {
                     return ResData.recordset;
                 } catch (e) {
                     console.error(e);
-                    res.status(422).json({ data: [], status: 'Failure', message: '', isCustomer: true });
+                    res.status(422).json({ data: [], success: false, message: '', isCustomer: true });
                     throw e;
                 }
             }));
 
             const flattenedArray = recordsetArray.flat();
 
-            res.status(200).json({ data: flattenedArray, status: 'Success', message: '', isCustomer: true });
+            res.status(200).json({ data: flattenedArray, success: true, message: '', isCustomer: true });
         } catch (e) {
             servError(e, res)
         }
@@ -95,7 +95,7 @@ const CustomerAPIs = () => {
                 .query('SELECT Cust_Id FROM tbl_Customer_Master WHERE User_Mgt_Id = @UserId');
 
             if (result.recordset.length === 0) {
-                return res.status(404).json({ data: [], status: 'Failure', message: 'Customer Not Found', isCustomer: false });
+                return res.status(404).json({ data: [], success: false, message: 'Customer Not Found', isCustomer: false });
             }
 
             const Cust_Id = result.recordset[0].Cust_Id;
@@ -105,7 +105,7 @@ const CustomerAPIs = () => {
             const CustInfo = await GetCustDetails.execute('Customer_Deatils_By_Cust_Id');
 
             if (CustInfo.recordset.length === 0) {
-                return res.status(404).json({ data: [], status: 'Failure', message: 'Customer Details Not Found', isCustomer: true });
+                return res.status(404).json({ data: [], success: false, message: 'Customer Details Not Found', isCustomer: true });
             }
 
             const recordsetArray = await Promise.all(CustInfo.recordset.map(async (obj) => {
@@ -124,7 +124,7 @@ const CustomerAPIs = () => {
             }));
 
             const flattenedArray = recordsetArray.flat();
-            res.status(200).json({ data: flattenedArray, status: 'Success', message: '', isCustomer: true });
+            res.status(200).json({ data: flattenedArray, success: true, message: '', isCustomer: true });
 
         } catch (e) {
             servError(e, res)
@@ -173,7 +173,7 @@ const CustomerAPIs = () => {
 
         try {
             if (!checkIsNumber(UserId)) {
-                return res.status(400).json({ data: [], status: 'Failure', message: 'UserId is required', isCustomer: false });
+                return res.status(400).json({ data: [], success: false, message: 'UserId is required', isCustomer: false });
             }
 
             const result = await new sql.Request()
@@ -181,7 +181,7 @@ const CustomerAPIs = () => {
                 .query(`SELECT Cust_Id FROM tbl_Customer_Master WHERE User_Mgt_Id = @UserId`);
 
             if (result.recordset.length === 0) {
-                return res.status(404).json({ data: [], status: 'Failure', message: 'Customer Not Found', isCustomer: false });
+                return res.status(404).json({ data: [], success: false, message: 'Customer Not Found', isCustomer: false });
             }
 
             const Cust_Id = result.recordset[0].Cust_Id;
@@ -192,7 +192,7 @@ const CustomerAPIs = () => {
             const CustInfo = await GetCustDetails.execute('Customer_Deatils_By_Cust_Id');
 
             if (CustInfo.recordset.length === 0) {
-                return res.status(404).json({ data: [], status: 'Failure', message: 'Customer Details Not Found', isCustomer: true });
+                return res.status(404).json({ data: [], success: false, message: 'Customer Details Not Found', isCustomer: true });
             }
 
             const recordsetArray = await Promise.all(CustInfo.recordset.map(async (obj) => {
@@ -212,12 +212,12 @@ const CustomerAPIs = () => {
             const hasError = recordsetArray.some(item => item.error);
 
             if (hasError) {
-                return res.status(422).json({ data: [], status: 'Failure', message: '', isCustomer: true });
+                return res.status(422).json({ data: [], success: false, message: '', isCustomer: true });
             }
 
             const flattenedArray = recordsetArray.flat();
 
-            res.status(200).json({ data: flattenedArray, status: 'Success', message: '', isCustomer: true });
+            res.status(200).json({ data: flattenedArray, success: true, message: '', isCustomer: true });
         } catch (e) {
             console.log(e);
             res.status(500).json({ message: 'Internal Server Error', status: 'Failure', data: [], isCustomer: false });

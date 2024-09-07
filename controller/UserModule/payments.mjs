@@ -1,12 +1,14 @@
 import sql from 'mssql';
 import { failed, invalidInput, servError, success, dataFound, noData } from '../../res.mjs';
+import { checkIsNumber } from '../../helper_functions.mjs';
+import { getUserTypeByAuth, getUserIdByAuth, getCUstomerIdByUserId } from '../../middleware/miniAPIs.mjs';
 
 const CustomersPayments = () => {
 
     const manualPayment = async (req, res) => {
         const { amount, bills, UserId, paymentType, TransactionId } = req.body;
 
-        if (!Number.isFinite(amount) || amount <= 0) {
+        if (!checkIsNumber(amount) || amount <= 0) {
             return invalidInput(res, 'Invalid amount. Amount must be a positive number');
         }
 
@@ -14,7 +16,7 @@ const CustomersPayments = () => {
             return invalidInput(res, 'Invalid bills. Bills must be an array with at least one element');
         }
 
-        if (!UserId) {
+        if (!checkIsNumber(UserId)) {
             return invalidInput(res, 'UserId Required');
         }
 
@@ -101,96 +103,47 @@ const CustomersPayments = () => {
     }
 
     const PaymentHistory = async (req, res) => {
-        const { paymentType, customerId, payStatus } = req.query;
+        const { payStatus, Auth } = req.query;
 
         try {
-            const queryType1 = `
-            SELECT 
-                c.Customer_name,
-                c.Mobile_no,
-                c.Email_Id,
-                c.Contact_Person,
-                c.Gstin,
-                po.*,
-                comp.Company_Name,
-                COALESCE(( 
-                    SELECT pob.* 
-                        FROM tbl_Payment_Order_Bills AS pob 
-                    WHERE po.Id = pob.Pay_Id 
-                        FOR JSON PATH
-                    ), '[]'
-                ) AS PaymentDetails
-            FROM 
-                tbl_Payment_Order AS po
-                JOIN tbl_Customer_Master AS c
-                ON c.Cust_Id = po.Cust_Id
-                JOIN tbl_DB_Name AS comp 
-                ON po.Comp_Id = comp.Id
-            WHERE 
-                po.Payment_Type = ${paymentType} 
-                AND po.Verified_Status = ${payStatus}`;
+            const userType = await getUserTypeByAuth(Auth);
+            const isCustomer = (userType === 4 || userType === 5) ? true : false;
+            
+            let CustomerId, UserId;
+            if (isCustomer) {
+                UserId = await getUserIdByAuth(Auth);
+                CustomerId = UserId ? await getCUstomerIdByUserId(UserId) : null;
+            } 
 
-            const queryType2 = `
-            SELECT 
-                c.Customer_name,
-                c.Mobile_no,
-                c.Email_Id,
-                c.Contact_Person,
-                c.Gstin,
-                po.*,
-                comp.Company_Name,
-                COALESCE(( 
-                    SELECT pob.* 
-                        FROM tbl_Payment_Order_Bills AS pob 
-                    WHERE po.Id = pob.Pay_Id 
-                        FOR JSON PATH
-                    ), '[]'
-                ) AS PaymentDetails
-            FROM 
-                tbl_Payment_Order AS po
-                JOIN tbl_Customer_Master AS c
-                ON c.Cust_Id = po.Cust_Id
-                JOIN tbl_DB_Name AS comp 
-                ON po.Comp_Id = comp.Id`;
-
-            const queryType3 = `
-            SELECT 
-                c.Customer_name,
-                c.Mobile_no,
-                c.Email_Id,
-                c.Contact_Person,
-                c.Gstin,
-                po.*,
-                comp.Company_Name,
-                COALESCE(( 
-                    SELECT pob.* 
-                        FROM tbl_Payment_Order_Bills AS pob 
-                    WHERE po.Id = pob.Pay_Id 
-                        FOR JSON PATH
-                    ), '[]'
-                ) AS PaymentDetails
-            FROM 
-                tbl_Payment_Order AS po
-                JOIN tbl_Customer_Master AS c
-                ON c.Cust_Id = po.Cust_Id
-                JOIN tbl_DB_Name AS comp 
-                ON po.Comp_Id = comp.Id
-            WHERE 
-                po.Payment_Type = '${paymentType}' 
-                AND po.Verified_Status = '${payStatus}'
-                AND po.Cust_Id = '${customerId}'`;
-
-            let exequey;
-
-            if (customerId && paymentType && payStatus) {
-                exequey = queryType3;
-            } else if (paymentType && payStatus) {
-                exequey = queryType1
-            } else {
-                exequey = queryType2
-            }
-
-            const result = await sql.query(exequey);
+            const result = await new sql.Request()
+                .input('payStatus', payStatus)
+                .input('customerId', CustomerId)
+                .query(`
+                    SELECT 
+                        c.Customer_name,
+                        c.Mobile_no,
+                        c.Email_Id,
+                        c.Contact_Person,
+                        c.Gstin,
+                        po.*,
+                        comp.Company_Name,
+                        COALESCE(( 
+                            SELECT pob.* 
+                            FROM tbl_Payment_Order_Bills AS pob 
+                            WHERE po.Id = pob.Pay_Id 
+                            FOR JSON PATH
+                        ), '[]') AS PaymentDetails
+                    FROM 
+                        tbl_Payment_Order AS po
+                        JOIN tbl_Customer_Master AS c
+                        ON c.Cust_Id = po.Cust_Id
+                        JOIN tbl_DB_Name AS comp 
+                        ON po.Comp_Id = comp.Id
+                    WHERE 
+                        po.Payment_Type = 1 
+                        ${payStatus ? ' AND po.Verified_Status = @payStatus ' : ''}
+                        ${(isCustomer && CustomerId) ? ' AND po.Cust_Id = @customerId ' : ''}`
+                );
 
             if (result.recordset.length > 0) {
                 const parsedData = result.recordset.map(record => {

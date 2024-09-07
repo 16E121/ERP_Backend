@@ -1,4 +1,5 @@
 import express from 'express';
+// import authenticateToken from '../middleware/auth.mjs'
 
 import AttendanceRouter from './attendance.mjs';
 import AuthorizationRouter from './authorization.mjs';
