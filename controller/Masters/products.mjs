@@ -346,7 +346,7 @@ const sfProductController = () => {
 
             const { Product_Id } = req.body;
 
-            if (isNaN(Product_Id)) {
+            if (!checkIsNumber(Product_Id)) {
                 return invalidInput(res, 'Product_Id is required');
             }
 

@@ -175,7 +175,7 @@ const appMenu = () => {
             const getAppMenuData = (await new sql.Request()
                 .query(`
                     WITH SubMenuData AS (
-                        SELECT * FROM tbl_Sub_Menu WHERE Active = 1
+                        SELECT * FROM tbl_Sub_Menu WHERE Id <> 60
                     )
                     SELECT 
                         m.*,
@@ -196,7 +196,7 @@ const appMenu = () => {
             // m.Active = 1
 
             if (getAppMenuData.length > 0) {
-                dataFound(res, getAppMenuData.map(o => ({...o, SubMenu: JSON.parse(o.SubMenu)})));
+                dataFound(res, getAppMenuData.map(o => ({ ...o, SubMenu: JSON.parse(o.SubMenu) })));
             } else {
                 noData(res);
             }
@@ -268,6 +268,9 @@ const appMenu = () => {
                 WHERE
                     Id = @Id`
             } else {
+                // if (Number(Id) === 8) {
+                //     return failed(res, 'You Cannot Update Authorization Menu');
+                // }
                 query = `   
                 UPDATE tbl_Master_Menu
                 SET
