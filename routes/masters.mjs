@@ -28,9 +28,9 @@ MastersRouter.get('/branch/dropDown', branch.getBranchDrowDown);
 
 
 MastersRouter.get('/users', user.getUsers);
-MastersRouter.post('/users', user.postUser);
-MastersRouter.put('/users', user.editUser);
-MastersRouter.delete('/users', user.deleteUser);
+MastersRouter.post('/users', user.createUser);
+MastersRouter.put('/users', user.updateUser);
+MastersRouter.delete('/users', user.newDeleteUser);
 MastersRouter.get('/user/dropDown', user.userDropdown);
 MastersRouter.get('/users/customUsers', user.customUserGet);
 MastersRouter.get('/users/employee/dropDown', user.employeeDropDown);

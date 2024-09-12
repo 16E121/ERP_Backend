@@ -348,6 +348,8 @@ export const checkIsNumber = (num) => {
     return num ? isNaN(num) ? false : true : false
 }
 
+export const isNumber = value => !isNaN(parseInt(value, 10)) && isFinite(value);
+
 export const isObject = (val) => {
     return Object.prototype.toString.call(val) === '[object Object]'
 }
@@ -406,4 +408,20 @@ export const getPermutations = (arr) => {
     }
 
     return permutations;
+}
+
+export const randomString = (length = 15) => {
+    const charset = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+[]{}|;:,.<>?';
+    let result = '';
+
+    if (length <= 0) {
+        return '';
+    }
+
+    for (let i = 0; i < length; i++) {
+        const randomIndex = Math.floor(Math.random() * charset.length);
+        result += charset[randomIndex];
+    }
+
+    return result;
 }

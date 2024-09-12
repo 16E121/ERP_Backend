@@ -6,7 +6,8 @@ import companyAccess from '../controller/Authorization/companyAccess.mjs';
 const AuthorizationRouter = express.Router();
 
 
-AuthorizationRouter.post('/login', LoginController.login)
+AuthorizationRouter.post('/login', LoginController.login);
+AuthorizationRouter.get('/user/accounts', LoginController.getAccountsInUserPortal);
 AuthorizationRouter.get('/userAuth', LoginController.getUserByAuth);
 
 

@@ -1,7 +1,19 @@
 import sql from 'mssql'
 import { servError, dataFound, noData, invalidInput, failed, success } from '../../res.mjs';
-import { checkIsNumber, decryptPasswordFun, encryptPasswordFun } from '../../helper_functions.mjs';
+import { checkIsNumber, decryptPasswordFun, encryptPasswordFun, randomString } from '../../helper_functions.mjs';
+import dotenv from 'dotenv';
+dotenv.config();
 
+const DB_Name  = process.env.DATABASE;
+const COM_ID  = Number(process.env.COMPANY);
+
+if (!checkIsNumber(COM_ID)) {
+    throw new Error('COMPANY id is not specified in .env')
+}
+
+if (!DB_Name) {
+    throw new Error('Company DATABASE is not specified in .env')
+}
 
 const user = () => {
 
@@ -55,6 +67,7 @@ const user = () => {
         }
     };
 
+    // old api for create user (not in use)
     const postUser = async (req, res) => {
         const { Name, UserName, UserTypeId, Password, BranchId, Company_id } = req.body;
 
@@ -96,6 +109,100 @@ const user = () => {
         }
     }
 
+    // new api for create global user
+    const createUser = async (req, res) => {
+        const { Name, UserName, UserTypeId, Password, BranchId, Company_id } = req.body;
+
+        if (!Name || !UserName || !checkIsNumber(UserTypeId) || !Password || !checkIsNumber(BranchId)) {
+            return invalidInput(res, 'Name, UserName, UserTypeId, Password and BranchId are required and must be valid.');
+        }
+    
+        const transaction = new sql.Transaction();
+    
+        try {
+            // Check if user already exists
+            const checkUserExistsResult = await new sql.Request()
+                .input('UserName', UserName)
+                .input('Company_id', COM_ID)
+                .query(`
+                    SELECT COUNT(*) AS userCount 
+                    FROM [User_Portal].[dbo].[tbl_Users] 
+                    WHERE UserName = @UserName AND Company_Id = @Company_id;
+                `);
+            
+            if (checkUserExistsResult.recordset[0].userCount > 0) {
+                return invalidInput(res, 'User already exists');
+            }
+    
+            // Global User Creation
+            const AuthString = randomString(50);
+            const getMaxUserIdResult = await new sql.Request()
+                .query(`
+                    SELECT CASE WHEN COUNT(*) > 0 THEN MAX(UserId) ELSE 0 END AS MaxUserId 
+                    FROM [${DB_Name}].[dbo].[tbl_Users];
+                `);
+            const UserMaxId = Number(getMaxUserIdResult.recordset[0].MaxUserId) + 1;
+
+            await transaction.begin();
+    
+            const GlobalInsertionResult = await new sql.Request(transaction)
+                .input('Company_id', COM_ID)
+                .input('Local_User_ID', UserMaxId)
+                .input('UserName', UserName)
+                .input('Name', Name)
+                .input('UserTypeId', UserTypeId)
+                .input('Password', decryptPasswordFun(Password))
+                .input('UDel_Flag', 0)
+                .input('Autheticate_Id', AuthString)
+                .query(`
+                    INSERT INTO [User_Portal].[dbo].[tbl_Users] (
+                        Local_User_ID, Company_Id, Name, Password, UserTypeId, UserName, UDel_Flag, Autheticate_Id
+                    ) VALUES (
+                        @Local_User_ID, @Company_Id, @Name, @Password, @UserTypeId, @UserName, @UDel_Flag, @Autheticate_Id
+                    );
+                    SELECT SCOPE_IDENTITY() AS GlobalId;
+                `);
+            
+            if (GlobalInsertionResult.rowsAffected[0] === 0) {
+                throw new Error('Global insertion failed');
+            }
+            const GlobalUserId = GlobalInsertionResult.recordset[0].GlobalId;
+    
+            // Local User Creation
+            const LocalInsertionResult = await new sql.Request(transaction)
+                .input('COMPANY_DB', DB_Name)
+                .input('UserId', UserMaxId)
+                .input('Global_User_ID', GlobalUserId)
+                .input('UserTypeId', UserTypeId)
+                .input('Name', Name)
+                .input('UserName', UserName)
+                .input('Password', decryptPasswordFun(Password))
+                .input('Company_id', COM_ID)
+                .input('BranchId', BranchId)
+                .input('UDel_Flag', 0)
+                .input('Autheticate_Id', AuthString)
+                .query(`
+                    INSERT INTO [${DB_Name}].[dbo].[tbl_Users] (
+                        UserId, Global_User_ID, UserTypeId, Name, UserName, Password, Company_id, BranchId, UDel_Flag, Autheticate_Id
+                    ) VALUES (
+                        @UserId, @Global_User_ID, @UserTypeId, @Name, @UserName, @Password, @Company_id, @BranchId, @UDel_Flag, @Autheticate_Id
+                    );
+                `);
+    
+            if (LocalInsertionResult.rowsAffected[0] === 0) {
+                throw new Error('Local insertion failed');
+            }
+    
+            await transaction.commit();
+            success(res, 'User created successfully');
+
+        } catch (e) {
+            await transaction.rollback();
+            servError(e, res);
+        }
+    };
+
+    // old api for update user (not in use)
     const editUser = async (req, res) => {
         const { UserId, Name, UserName, UserTypeId, Password, BranchId } = req.body;
 
@@ -139,6 +246,98 @@ const user = () => {
         }
     }
 
+    // new api for update global user
+    const updateUser = async (req, res) => {
+        const { 
+            UserId, Name, UserName, UserTypeId, Password, BranchId
+        } = req.body;
+    
+        if (!UserId || !Name || !UserName || !checkIsNumber(UserTypeId) || !Password || !checkIsNumber(BranchId)) {
+            return invalidInput(res, 'UserId, Name, UserName, UserTypeId, Password and BranchId are required and must be valid.', {
+                UserId, Name, UserName, UserTypeId, Password, BranchId
+            });
+        }
+    
+        const transaction = new sql.Transaction();
+    
+        try {
+            // check if user is already
+            const checkUserExistsResult = await new sql.Request()
+                .input('UserName', UserName)
+                .input('UserId', UserId)
+                .input('Company_id', COM_ID)
+                .query(`
+                    SELECT COUNT(*) AS userCount 
+                    FROM [User_Portal].[dbo].[tbl_Users] 
+                    WHERE UserName = @UserName AND Company_Id = @Company_id AND Local_User_ID <> @UserId;
+                `);
+            
+            if (checkUserExistsResult.recordset[0].userCount > 0) {
+                return invalidInput(res, 'User already exists');
+            }
+
+            // const getDBNameResult = await getCompanyDBName(Company_id);
+            // if (!getDBNameResult.success) {
+            //     return invalidInput(res, 'Company is not available');
+            // }
+            
+            await transaction.begin();
+    
+            // Update global user record
+            const globalUpdateResult = await new sql.Request(transaction)
+                .input('UserId', UserId)
+                .input('Name', Name)
+                .input('UserName', UserName)
+                .input('UserTypeId', UserTypeId)
+                .input('Password', decryptPasswordFun(Password))
+                .input('Company_id', COM_ID)
+                .query(`
+                    UPDATE [User_Portal].[dbo].[tbl_Users]
+                    SET Name = @Name,
+                        UserName = @UserName,
+                        UserTypeId = @UserTypeId,
+                        Password = @Password
+                    WHERE Local_User_ID = @UserId
+                    AND Company_Id = @Company_id;
+                `);
+    
+            if (globalUpdateResult.rowsAffected[0] === 0) {
+                throw new Error('Global user update failed');
+            }
+    
+            // Update local user record
+            const localUpdateResult = await new sql.Request(transaction)
+                .input('UserId', UserId)
+                .input('Name', Name)
+                .input('UserName', UserName)
+                .input('UserTypeId', UserTypeId)
+                .input('Password', decryptPasswordFun(Password))
+                .input('BranchId', BranchId)
+                .input('Company_id', COM_ID)
+                .query(`
+                    UPDATE [${DB_Name}].[dbo].[tbl_Users]
+                    SET Name = @Name,
+                        UserName = @UserName,
+                        UserTypeId = @UserTypeId,
+                        Password = @Password
+                    WHERE UserId = @UserId
+                    AND Company_id = @Company_id;
+                `);
+    
+            if (localUpdateResult.rowsAffected[0] === 0) {
+                throw new Error('Local user update failed');
+            }
+
+            await transaction.commit();
+            success(res, 'User updated successfully');
+
+        } catch (e) {
+            await transaction.rollback();
+            servError(e, res);
+        }
+    };
+
+    // old api for delete user (not in use)
     const deleteUser = async (req, res) => {
         const { UserId } = req.body;
 
@@ -169,6 +368,61 @@ const user = () => {
             servError(e, res);
         }
     }
+
+    // new api for soft delete user
+    const newDeleteUser = async (req, res) => {
+        const { UserId } = req.body;
+    
+        if (!checkIsNumber(UserId)) {
+            return invalidInput(res, 'UserId is required');
+        }
+    
+        const transaction = new sql.Transaction();
+    
+        try {    
+            // const getDBNameResult = await getCompanyDBName(Company_id);
+            // if (!getDBNameResult.success) {
+            //     return invalidInput(res, 'Company is not available');
+            // }
+            
+            await transaction.begin();
+    
+            const globalUpdateResult = await new sql.Request(transaction)
+                .input('UserId', UserId)
+                .input('Company_id', COM_ID)
+                .query(`
+                    UPDATE [User_Portal].[dbo].[tbl_Users]
+                    SET UDel_Flag = 1
+                    WHERE Local_User_ID = @UserId
+                    AND Company_Id = @Company_id;
+                `);
+    
+            if (globalUpdateResult.rowsAffected[0] === 0) {
+                throw new Error('Global user update failed');
+            }
+    
+            // Update local user record
+            const localUpdateResult = await new sql.Request(transaction)
+                .input('UserId', UserId)
+                .input('Company_id', COM_ID)
+                .query(`
+                    UPDATE [${DB_Name}].[dbo].[tbl_Users]
+                    SET UDel_Flag = 1
+                    WHERE UserId = @UserId
+                    AND Company_id = @Company_id;
+                `);
+    
+            if (localUpdateResult.rowsAffected[0] === 0) {
+                throw new Error('Local user update failed');
+            }
+    
+            await transaction.commit();
+            success(res, 'User deleted successfully')
+        } catch (e) {
+            await transaction.rollback();
+            servError(e, res);
+        }
+    };
 
     const userDropdown = async (req, res) => {
         const { Company_id, withAuth } = req.query;
@@ -370,8 +624,11 @@ const user = () => {
     return {
         getUsers,
         postUser,
+        createUser,
         editUser,
+        updateUser,
         deleteUser,
+        newDeleteUser,
         userDropdown,
         employeeDropDown,
         getSalesPersonDropdown,

@@ -4,6 +4,41 @@ import { decryptPasswordFun, LocalDateTime } from '../../helper_functions.mjs';
 
 const LoginController = () => {
 
+    const getAccountsInUserPortal = async (req, res) => {
+        const { username } = req.query;
+
+        if (!username) {
+            return invalidInput(res, 'username is required');
+        }
+
+        try {
+            const result = await new sql.Request()
+                .input('username', username)
+                .query(`
+                    SELECT 
+                        c.Company_Name,
+                        c.Local_Comp_Id AS Local_Id,
+                        c.Global_Comp_Id AS Global_Id,
+                        c.Web_Api
+                    FROM
+                        [User_Portal].[dbo].[tbl_Company] AS c,
+                        [User_Portal].[dbo].[tbl_Users] AS u
+                    WHERE
+                        u.UserName = @username
+                        AND
+                        u.Company_Id = c.Local_Comp_Id
+                    `)
+
+            if (result.recordset.length > 0) {
+                dataFound(res, result.recordset)
+            } else {
+                noData(res);
+            }
+        } catch (e) {
+            servError(e, res);
+        }
+    }
+
     const login = async (req, res) => {
         const { username, password } = req.body;
 
@@ -143,6 +178,7 @@ const LoginController = () => {
     }
 
     return {
+        getAccountsInUserPortal,
         login,
         getUserByAuth,
     }

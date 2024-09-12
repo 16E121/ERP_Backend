@@ -12,6 +12,8 @@ ReportRouter.get('/PurchaseOrderReportCard', dbconnect, stockAndPurchase.purchas
 ReportRouter.get('/salesReport/ledger', dbconnect, stockAndPurchase.salesReport);
 ReportRouter.get('/salesReport/products', dbconnect, stockAndPurchase.porductBasedSalesResult);
 ReportRouter.get('/tally-test-api', stockAndPurchase.externalAPI);
+ReportRouter.get('/tally-test-api-purchase', stockAndPurchase.externalAPIPurchase);
+ReportRouter.get('/tally-test-api-saleOrder', stockAndPurchase.externalAPISaleOrder);
 
 
 ReportRouter.get('/template', template.getTemplates);
