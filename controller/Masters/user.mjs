@@ -111,7 +111,7 @@ const user = () => {
 
     // new api for create global user
     const createUser = async (req, res) => {
-        const { Name, UserName, UserTypeId, Password, BranchId, Company_id } = req.body;
+        const { Name, UserName, UserTypeId, Password, BranchId } = req.body;
 
         if (!Name || !UserName || !checkIsNumber(UserTypeId) || !Password || !checkIsNumber(BranchId)) {
             return invalidInput(res, 'Name, UserName, UserTypeId, Password and BranchId are required and must be valid.');
@@ -194,7 +194,9 @@ const user = () => {
             }
     
             await transaction.commit();
-            success(res, 'User created successfully');
+            success(res, 'User created successfully', [], {
+                UserId: UserMaxId
+            });
 
         } catch (e) {
             await transaction.rollback();
