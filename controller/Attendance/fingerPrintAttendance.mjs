@@ -45,7 +45,10 @@ const FingerPrintAttendance = () => {
                         E.Emp_Id,
                     	E.Emp_Name,
                     	E.Mobile_No,
-                    	A.*
+                    	A.*,
+                        COALESCE((
+                            SELECT DepartmentFName FROM tbl_Attendance_Departments WHERE DepartmentId = E.Department_ID
+                        ), 'Not Found') AS Salary_Type
                     FROM 
                         tbl_Employee_Master AS E,
                     	ATTENDANCE AS A

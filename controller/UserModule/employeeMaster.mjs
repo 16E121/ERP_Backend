@@ -1,5 +1,6 @@
 import sql from 'mssql';
 import { dataFound, noData, servError, invalidInput, failed, success } from '../../res.mjs';
+import { encryptPasswordFun } from '../../helper_functions.mjs';
 import fetch from 'node-fetch';
 import dotenv from 'dotenv';
 dotenv.config();
@@ -26,6 +27,21 @@ const EmployeeController = () => {
             }
         } catch (e) {
             servError(e, res)
+        }
+    }
+
+    const employeeDepartmentGet = async (req, res) => {
+        try {
+            const result = (await sql.query(`SELECT * FROM tbl_Attendance_Departments`)).recordset;
+
+            if (result.length > 0) {
+                dataFound(res, result);
+            } else {
+                noData(res);
+            }
+            
+        } catch (e) {
+            servError(e, res);
         }
     }
 
@@ -69,13 +85,12 @@ const EmployeeController = () => {
             branch, mobile, empname, designation, dob, doj,
             address1, address2, city, pincode, education,
             father, mother, spouse, gender, religion, salary, total_loan,
-            salary_advance, due_loan, enter_by, fingerPrintEmpId
+            salary_advance, due_loan, enter_by, fingerPrintEmpId, Department_ID
         } = req.body.data;
         let userId = '';
         let empcode = '';
         let zeros = 0;
         let maxId = 0;
-        let Company_id;
 
         const transaction = new sql.Transaction();
 
@@ -83,13 +98,12 @@ const EmployeeController = () => {
 
             const getBranchCode = new sql.Request()
                 .input('branch', branch)
-                .query(`SELECT BranchCode, Company_id FROM tbl_Branch_Master WHERE BranchId = @branch`);
+                .query(`SELECT BranchCode FROM tbl_Branch_Master WHERE BranchId = @branch`);
 
             const branchResult = await getBranchCode;
 
             if (branchResult.recordset.length > 0) {
                 empcode = branchResult.recordset[0]?.BranchCode;
-                Company_id = branchResult.recordset[0]?.Company_id;
             } else {
                 return invalidInput(res, 'Branch not Found')
             }
@@ -118,7 +132,7 @@ const EmployeeController = () => {
                     Name: empname,
                     UserName: mobile,
                     UserTypeId: 3,
-                    Password: '123456',
+                    Password: encryptPasswordFun('123456'),
                     BranchId: parseInt(branch)
                 })
             });
@@ -141,6 +155,7 @@ const EmployeeController = () => {
                 .input('Designation', designation)
                 .input('DOB', dob ? new Date(dob) : '')
                 .input('DOJ', doj ? new Date(doj) : '')
+                .input('Department_ID', Department_ID)
                 .input('Address_1', address1)
                 .input('Address_2', address2)
                 .input('City', city)
@@ -161,11 +176,11 @@ const EmployeeController = () => {
                 .input('Entry_By', enter_by)
                 .query(`
                     INSERT INTO tbl_Employee_Master (
-                        Emp_Id, fingerPrintEmpId, Branch, Emp_Code, Emp_Name, Designation, DOB, DOJ, Address_1, Address_2, City,
+                        Emp_Id, fingerPrintEmpId, Branch, Emp_Code, Emp_Name, Designation, DOB, DOJ, Department_ID, Address_1, Address_2, City,
                         Country, Pincode, Mobile_No, Education, Fathers_Name, Mothers_Name, Spouse_Name,
                         Sex, Emp_Religion, Salary, Total_Loan, Salary_Advance, Due_Loan, User_Mgt_Id, Entry_By, Entry_Date
                     ) VALUES(
-                        @Emp_Id, @fingerPrintEmpId, @Branch, @Emp_Code, @Emp_Name, @Designation, @DOB, @DOJ, @Address_1, @Address_2, @City,
+                        @Emp_Id, @fingerPrintEmpId, @Branch, @Emp_Code, @Emp_Name, @Designation, @DOB, @DOJ, @Department_ID, @Address_1, @Address_2, @City,
                         @Country, @Pincode, @Mobile_No, @Education, @Fathers_Name, @Mothers_Name, @Spouse_Name,
                         @Sex, @Emp_Religion, @Salary, @Total_Loan, @Salary_Advance, @Due_Loan, @User_Mgt_Id, @Entry_By, GETDATE()
                     ) `
@@ -191,7 +206,7 @@ const EmployeeController = () => {
             branch, mobile, empname, designation,
             address1, address2, city, pincode, education,
             father, mother, spouse, gender, religion, salary, total_loan,
-            salary_advance, due_loan, enter_by, fingerPrintEmpId, user_manage_id
+            salary_advance, due_loan, enter_by, fingerPrintEmpId, user_manage_id, Department_ID
         } = data;
         const dob = data.dob ? data.dob : null;
         const doj = data.doj ? data.doj : null;
@@ -199,7 +214,7 @@ const EmployeeController = () => {
         try {
             const getBranchCode = new sql.Request()
                 .input('branch', branch)
-                .query(`SELECT BranchCode, Company_id FROM tbl_Branch_Master WHERE BranchId = @branch`);
+                .query(`SELECT BranchCode FROM tbl_Branch_Master WHERE BranchId = @branch`);
             const branchResult = await getBranchCode;
 
             if (branchResult.recordset.length === 0) {
@@ -220,6 +235,10 @@ const EmployeeController = () => {
             try {
                 await transaction.begin();
 
+                const currentPassword = (await new sql.Request()
+                    .input('UserId', user_manage_id)
+                    .query(`SELECT TOP (1) Password FROM tbl_Users WHERE UserId = @UserId`)).recordset[0].Password;
+
                 const request = await fetch(`${domain}api/masters/users`, {
                     method: 'PUT',
                     headers: {
@@ -230,7 +249,7 @@ const EmployeeController = () => {
                         Name: empname,
                         UserName: mobile,
                         UserTypeId: 3,
-                        Password: '123456',
+                        Password: encryptPasswordFun(currentPassword ?? '123456'),
                         BranchId: parseInt(branch)
                     })
                 });
@@ -249,6 +268,7 @@ const EmployeeController = () => {
                     .input('Designation', designation)
                     .input('DOB', dob ? new Date(dob) : new Date())
                     .input('DOJ', doj ? new Date(doj) : new Date())
+                    .input('Department_ID', Department_ID)
                     .input('Address_1', address1)
                     .input('Address_2', address2)
                     .input('City', city)
@@ -273,8 +293,9 @@ const EmployeeController = () => {
                             Branch = @Branch,
                             Emp_Name = @Emp_Name,
                             Designation = @Designation,
-                            ${dob ? `DOB = CONVERT(DATE, @DOB),` : ''}
-                            ${doj ? `DOJ = CONVERT(DATE, @DOJ),` : ''}  
+                            ${dob ? 'DOB = CONVERT(DATE, @DOB),' : ''}
+                            ${doj ? 'DOJ = CONVERT(DATE, @DOJ),' : ''}  
+                            Department_ID = @Department_ID,
                             Address_1 = @Address_1, 
                             Address_2 = @Address_2, 
                             City = @City, 
@@ -316,6 +337,7 @@ const EmployeeController = () => {
 
     return {
         emp_designation,
+        employeeDepartmentGet,
         employeeGet,
         employeePost,
         employeePut,

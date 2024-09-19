@@ -24,6 +24,7 @@ UserModule.get('/customer/customerSalesReport', statementOfAccount.customerSales
 UserModule.get('/customer/salesInfo', statementOfAccount.salesInfo);
 
 UserModule.get('/employee/designation', employeeMaster.emp_designation);
+UserModule.get('/employee/department', employeeMaster.employeeDepartmentGet);
 UserModule.get('/employee', employeeMaster.employeeGet);
 UserModule.post('/employee', employeeMaster.employeePost);
 UserModule.put('/employee', employeeMaster.employeePut);

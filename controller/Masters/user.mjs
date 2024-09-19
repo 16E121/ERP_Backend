@@ -68,46 +68,46 @@ const user = () => {
     };
 
     // old api for create user (not in use)
-    const postUser = async (req, res) => {
-        const { Name, UserName, UserTypeId, Password, BranchId, Company_id } = req.body;
+    // const postUser = async (req, res) => {
+    //     const { Name, UserName, UserTypeId, Password, BranchId, Company_id } = req.body;
 
-        if (!Name || !UserName || !checkIsNumber(UserTypeId) || !Password || !checkIsNumber(BranchId) || !checkIsNumber(Company_id)) {
-            return invalidInput(res, 'Name, UserName, UserTypeId, Password, Company_id and BranchId is required')
-        }
+    //     if (!Name || !UserName || !checkIsNumber(UserTypeId) || !Password || !checkIsNumber(BranchId) || !checkIsNumber(Company_id)) {
+    //         return invalidInput(res, 'Name, UserName, UserTypeId, Password, Company_id and BranchId is required')
+    //     }
 
-        try {
+    //     try {
 
-            const checkTable = (await new sql.Request()
-                .input('UserName', UserName)
-                .query('SELECT UserId FROM tbl_Users WHERE UserName = @UserName')
-            ).recordset
+    //         const checkTable = (await new sql.Request()
+    //             .input('UserName', UserName)
+    //             .query('SELECT UserId FROM tbl_Users WHERE UserName = @UserName')
+    //         ).recordset
 
-            if (checkTable.length > 0) {
-                return failed(res, 'Mobile Number is already exist')
-            }
+    //         if (checkTable.length > 0) {
+    //             return failed(res, 'Mobile Number is already exist')
+    //         }
 
-            const request = new sql.Request();
-            request.input('Mode', 1);
-            request.input('UserId', 0);
-            request.input('Name', Name);
-            request.input('UserName', UserName);
-            request.input('UserTypeId', UserTypeId);
-            request.input('Password', decryptPasswordFun(Password));
-            request.input('BranchId', BranchId);
-            request.input('Company_id', Company_id)
+    //         const request = new sql.Request();
+    //         request.input('Mode', 1);
+    //         request.input('UserId', 0);
+    //         request.input('Name', Name);
+    //         request.input('UserName', UserName);
+    //         request.input('UserTypeId', UserTypeId);
+    //         request.input('Password', decryptPasswordFun(Password));
+    //         request.input('BranchId', BranchId);
+    //         request.input('Company_id', Company_id)
 
-            const result = await request.execute('UsersSP');
+    //         const result = await request.execute('UsersSP');
 
-            if (result.rowsAffected[0] > 0) {
-                success(res, 'User created')
-            } else {
-                failed(res, 'Failed to create')
-            }
+    //         if (result.rowsAffected[0] > 0) {
+    //             success(res, 'User created')
+    //         } else {
+    //             failed(res, 'Failed to create')
+    //         }
 
-        } catch (e) {
-            servError(e, res)
-        }
-    }
+    //     } catch (e) {
+    //         servError(e, res)
+    //     }
+    // }
 
     // new api for create global user
     const createUser = async (req, res) => {
@@ -205,48 +205,48 @@ const user = () => {
     };
 
     // old api for update user (not in use)
-    const editUser = async (req, res) => {
-        const { UserId, Name, UserName, UserTypeId, Password, BranchId } = req.body;
+    // const editUser = async (req, res) => {
+    //     const { UserId, Name, UserName, UserTypeId, Password, BranchId } = req.body;
 
-        if (!checkIsNumber(UserId) || !Name || !UserName || !checkIsNumber(UserTypeId) || !Password || !checkIsNumber(BranchId)) {
-            return invalidInput(res, 'UserId, Name, UserName, UserTypeId, Password and BranchId is required')
-        }
+    //     if (!checkIsNumber(UserId) || !Name || !UserName || !checkIsNumber(UserTypeId) || !Password || !checkIsNumber(BranchId)) {
+    //         return invalidInput(res, 'UserId, Name, UserName, UserTypeId, Password and BranchId is required')
+    //     }
 
-        try {
+    //     try {
 
-            const checkTable = (await new sql.Request()
-                .input('UserName', UserName)
-                .input('user', UserId)
-                .query('SELECT UserId FROM tbl_Users WHERE UserName = @UserName AND UserId != @user')
-            ).recordset
+    //         const checkTable = (await new sql.Request()
+    //             .input('UserName', UserName)
+    //             .input('user', UserId)
+    //             .query('SELECT UserId FROM tbl_Users WHERE UserName = @UserName AND UserId != @user')
+    //         ).recordset
 
-            if (checkTable.length > 0) {
-                return failed(res, 'Mobile Number is already exist')
-            }
+    //         if (checkTable.length > 0) {
+    //             return failed(res, 'Mobile Number is already exist')
+    //         }
 
-            const request = new sql.Request();
-            request.input('Mode', 2);
-            request.input('UserId', UserId);
-            request.input('Name', Name);
-            request.input('UserName', UserName);
-            request.input('UserTypeId', UserTypeId);
-            request.input('Password', decryptPasswordFun(Password));
-            request.input('BranchId', BranchId);
-            request.input('Company_id', 0)
+    //         const request = new sql.Request();
+    //         request.input('Mode', 2);
+    //         request.input('UserId', UserId);
+    //         request.input('Name', Name);
+    //         request.input('UserName', UserName);
+    //         request.input('UserTypeId', UserTypeId);
+    //         request.input('Password', decryptPasswordFun(Password));
+    //         request.input('BranchId', BranchId);
+    //         request.input('Company_id', 0)
 
 
-            const result = await request.execute('UsersSP');
+    //         const result = await request.execute('UsersSP');
 
-            if (result.rowsAffected[0] > 0) {
-                success(res, 'Changes Saved!')
-            } else {
-                failed(res, 'Failed to save changes')
-            }
+    //         if (result.rowsAffected[0] > 0) {
+    //             success(res, 'Changes Saved!')
+    //         } else {
+    //             failed(res, 'Failed to save changes')
+    //         }
 
-        } catch (e) {
-            servError(e, res)
-        }
-    }
+    //     } catch (e) {
+    //         servError(e, res)
+    //     }
+    // }
 
     // new api for update global user
     const updateUser = async (req, res) => {
@@ -625,9 +625,9 @@ const user = () => {
 
     return {
         getUsers,
-        postUser,
+        // postUser,
         createUser,
-        editUser,
+        // editUser,
         updateUser,
         deleteUser,
         newDeleteUser,
