@@ -6,6 +6,7 @@ dotenv.config();
 
 const DB_Name  = process.env.DATABASE;
 const COM_ID  = Number(process.env.COMPANY);
+const userPortalDB = process.env.USERPORTALDB;
 
 if (!checkIsNumber(COM_ID)) {
     throw new Error('COMPANY id is not specified in .env')
@@ -126,7 +127,7 @@ const user = () => {
                 .input('Company_id', COM_ID)
                 .query(`
                     SELECT COUNT(*) AS userCount 
-                    FROM [User_Portal].[dbo].[tbl_Users] 
+                    FROM [${userPortalDB}].[dbo].[tbl_Users] 
                     WHERE UserName = @UserName AND Company_Id = @Company_id;
                 `);
             
@@ -155,7 +156,7 @@ const user = () => {
                 .input('UDel_Flag', 0)
                 .input('Autheticate_Id', AuthString)
                 .query(`
-                    INSERT INTO [User_Portal].[dbo].[tbl_Users] (
+                    INSERT INTO [${userPortalDB}].[dbo].[tbl_Users] (
                         Local_User_ID, Company_Id, Name, Password, UserTypeId, UserName, UDel_Flag, Autheticate_Id
                     ) VALUES (
                         @Local_User_ID, @Company_Id, @Name, @Password, @UserTypeId, @UserName, @UDel_Flag, @Autheticate_Id
@@ -270,7 +271,7 @@ const user = () => {
                 .input('Company_id', COM_ID)
                 .query(`
                     SELECT COUNT(*) AS userCount 
-                    FROM [User_Portal].[dbo].[tbl_Users] 
+                    FROM [${userPortalDB}].[dbo].[tbl_Users] 
                     WHERE UserName = @UserName AND Company_Id = @Company_id AND Local_User_ID <> @UserId;
                 `);
             
@@ -294,7 +295,7 @@ const user = () => {
                 .input('Password', decryptPasswordFun(Password))
                 .input('Company_id', COM_ID)
                 .query(`
-                    UPDATE [User_Portal].[dbo].[tbl_Users]
+                    UPDATE [${userPortalDB}].[dbo].[tbl_Users]
                     SET Name = @Name,
                         UserName = @UserName,
                         UserTypeId = @UserTypeId,
@@ -393,7 +394,7 @@ const user = () => {
                 .input('UserId', UserId)
                 .input('Company_id', COM_ID)
                 .query(`
-                    UPDATE [User_Portal].[dbo].[tbl_Users]
+                    UPDATE [${userPortalDB}].[dbo].[tbl_Users]
                     SET UDel_Flag = 1
                     WHERE Local_User_ID = @UserId
                     AND Company_Id = @Company_id;

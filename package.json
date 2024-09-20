@@ -8,7 +8,17 @@
     "dev": "nodemon app.mjs",
     "start": "node app.mjs"
   },
-  "keywords": [],
+  "keywords": [
+    "database",
+    "mssql",
+    "sql",
+    "server",
+    "sqlserver",
+    "node-sqlserver",
+    "sqlserver",
+    "msnodesqlv8",
+    "node-mssql"
+  ],
   "author": "",
   "license": "ISC",
   "dependencies": {

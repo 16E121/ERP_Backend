@@ -7,8 +7,9 @@ const AuthorizationRouter = express.Router();
 
 
 AuthorizationRouter.post('/login', LoginController.login);
-AuthorizationRouter.get('/user/accounts', LoginController.getAccountsInUserPortal);
 AuthorizationRouter.get('/userAuth', LoginController.getUserByAuth);
+AuthorizationRouter.post('/userPortal/login', LoginController.login);
+AuthorizationRouter.get('/userPortal/accounts', LoginController.getAccountsInUserPortal);
 
 
 AuthorizationRouter.get('/appMenu', appMenu.getMenu);

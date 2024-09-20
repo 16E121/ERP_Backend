@@ -1,6 +1,11 @@
 import sql from 'mssql'
-import { servError, dataFound, failed, invalidInput } from '../../res.mjs';
+import { servError, dataFound, failed, invalidInput, success } from '../../res.mjs';
 import { decryptPasswordFun, LocalDateTime } from '../../helper_functions.mjs';
+import dotenv from 'dotenv';
+dotenv.config();
+
+const userPortalDB = process.env.USERPORTALDB;
+
 
 const LoginController = () => {
 
@@ -19,10 +24,11 @@ const LoginController = () => {
                         c.Company_Name,
                         c.Local_Comp_Id AS Local_Id,
                         c.Global_Comp_Id AS Global_Id,
-                        c.Web_Api
+                        c.Web_Api,
+                        u.Global_User_ID
                     FROM
-                        [User_Portal].[dbo].[tbl_Company] AS c,
-                        [User_Portal].[dbo].[tbl_Users] AS u
+                        [${userPortalDB}].[dbo].[tbl_Company] AS c,
+                        [${userPortalDB}].[dbo].[tbl_Users] AS u
                     WHERE
                         u.UserName = @username
                         AND
@@ -33,6 +39,38 @@ const LoginController = () => {
                 dataFound(res, result.recordset)
             } else {
                 noData(res);
+            }
+        } catch (e) {
+            servError(e, res);
+        }
+    }
+
+    const globalLogin = async (req, res) => {
+        const { Global_User_ID, Password } = req.body;
+
+        try {
+            const result = await new sql.Request()
+                .input('Global_User_ID', Global_User_ID)
+                .input('Password', decryptPasswordFun(Password))
+                .query(`
+                    SELECT 
+                        c.Web_Api,
+                        u.Autheticate_Id,
+						(SELECT c.Web_Api + '?Auth=' + u.Autheticate_Id) AS LOGIN_URL
+                    FROM
+                        [${userPortalDB}].[dbo].[tbl_Company] AS c,
+                        [${userPortalDB}].[dbo].[tbl_Users] AS u
+                    WHERE
+                        u.Global_User_ID = @Global_User_ID
+                        AND
+                        u.Password = @Password
+                        AND
+                        u.Company_Id = c.Local_Comp_Id
+                    `);
+            if (result.recordset.length > 0) {
+                success(res, 'Login successful', result.recordset[0])
+            } else {
+                failed(res, 'Invalid Password')
             }
         } catch (e) {
             servError(e, res);
@@ -179,6 +217,7 @@ const LoginController = () => {
 
     return {
         getAccountsInUserPortal,
+        globalLogin,
         login,
         getUserByAuth,
     }
