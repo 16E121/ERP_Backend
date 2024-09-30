@@ -1,5 +1,5 @@
 import sql from 'mssql'
-import { servError, dataFound, failed, invalidInput, success } from '../../res.mjs';
+import { servError, dataFound, failed, invalidInput, success, noData } from '../../res.mjs';
 import { decryptPasswordFun, LocalDateTime } from '../../helper_functions.mjs';
 import dotenv from 'dotenv';
 dotenv.config();
@@ -47,11 +47,13 @@ const LoginController = () => {
 
     const globalLogin = async (req, res) => {
         const { Global_User_ID, Password } = req.body;
+        // console.log(req.body);
 
         try {
+            const decryptedPassword = decryptPasswordFun(Password);
             const result = await new sql.Request()
                 .input('Global_User_ID', Global_User_ID)
-                .input('Password', decryptPasswordFun(Password))
+                .input('Password', decryptedPassword)
                 .query(`
                     SELECT 
                         c.Web_Api,

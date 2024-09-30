@@ -1,31 +1,32 @@
 import express from 'express';
 import LoginController from '../controller/Authorization/login.mjs'; 
 import appMenu from '../controller/Authorization/appMenu.mjs';
-import companyAccess from '../controller/Authorization/companyAccess.mjs';
+import authenticateToken from '../middleware/auth.mjs';
 
 const AuthorizationRouter = express.Router();
 
 
 AuthorizationRouter.post('/login', LoginController.login);
 AuthorizationRouter.get('/userAuth', LoginController.getUserByAuth);
-AuthorizationRouter.post('/userPortal/login', LoginController.login);
+AuthorizationRouter.post('/userPortal/login', LoginController.globalLogin);
 AuthorizationRouter.get('/userPortal/accounts', LoginController.getAccountsInUserPortal);
 
 
 AuthorizationRouter.get('/appMenu', appMenu.getMenu);
+AuthorizationRouter.get('/newAppMenu', authenticateToken, appMenu.newAppMenu)
 
-AuthorizationRouter.get('/userRights', appMenu.getUserRights);
-AuthorizationRouter.post('/userRights', appMenu.modifyUserRights);
+AuthorizationRouter.get('/userRights', appMenu.getNewUserBasedRights);
+AuthorizationRouter.post('/userRights', appMenu.newModifyUserRights);
 
-AuthorizationRouter.get('/userTypeRights', appMenu.getUserTypeRights);
-AuthorizationRouter.post('/userTypeRights', appMenu.modifyUserTypeRights);
+AuthorizationRouter.get('/userTypeRights', appMenu.getNewUserTypeBasedRights);
+AuthorizationRouter.post('/userTypeRights', appMenu.newModifyUserTypeRights);
 
 AuthorizationRouter.get('/menuMaster', appMenu.menuMaster);
 AuthorizationRouter.post('/menuMaster', appMenu.createMenu);
 AuthorizationRouter.put('/menuMaster', appMenu.updateMenu);
 
-AuthorizationRouter.get('/companysAccess', companyAccess.getMYCompanyAccess);
-AuthorizationRouter.post('/companysAccess', companyAccess.postCompanyAccess);
+// AuthorizationRouter.get('/companysAccess', companyAccess.getMYCompanyAccess);
+// AuthorizationRouter.post('/companysAccess', companyAccess.postCompanyAccess);
 
 
 export default AuthorizationRouter;

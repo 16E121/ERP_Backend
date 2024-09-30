@@ -38,6 +38,7 @@
     "url": "^0.11.4"
   },
   "devDependencies": {
+    "@types/crypto-js": "^4.2.2",
     "@types/mssql": "^9.1.5",
     "nodemon": "^3.1.4"
   }

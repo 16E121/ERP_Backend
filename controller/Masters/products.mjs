@@ -45,8 +45,9 @@ const sfProductController = () => {
             const query = `
             SELECT 
             	p.*,
-            	b.Brand_Name,
-            	pg.Pro_Group,
+            	COALESCE(b.Brand_Name, 'NOT FOUND') AS Brand_Name,
+            	COALESCE(pg.Pro_Group, 'NOT FOUND') AS Pro_Group,
+                COALESCE(u.Units, 'NOT FOUND') AS Units,
                 COALESCE((
                     SELECT 
                         TOP (1) Product_Rate 
@@ -57,13 +58,14 @@ const sfProductController = () => {
                     ORDER BY
                         CONVERT(DATETIME, Rate_Date) DESC
                 ), 0) AS Item_Rate
-
             FROM 
             	tbl_Product_Master AS p
             	LEFT JOIN tbl_Brand_Master AS b
             	ON b.Brand_Id = p.Brand
             	LEFT JOIN tbl_Product_Group AS pg
             	ON pg.Pro_Group_Id = p.Product_Group
+                LEFT JOIN tbl_UOM AS u
+                ON u.Unit_Id = p.UOM_Id
             `;
 
             // WHERE
@@ -97,24 +99,54 @@ const sfProductController = () => {
 
         try {
             const query = `
+            WITH UOM AS (
+                SELECT *
+                FROM tbl_UOM
+            ),
+            RATE AS (
+                SELECT * 
+                FROM tbl_Pro_Rate_Master
+            ),
+            BRAND AS (
+                SELECT *
+                FROM tbl_Brand_Master
+            ),
+            PRODUCTGROUP AS (
+                SELECT *
+                FROM tbl_Product_Group
+            ),
+            PRODUCTS AS (
+                SELECT 
+                    p.*,
+                    COALESCE(b.Brand_Name, 'NOT FOUND') AS Brand_Name,
+            	    COALESCE(pg.Pro_Group, 'NOT FOUND') AS Pro_Group,
+                    COALESCE(u.Units, 'NOT FOUND') AS Units,
+                    COALESCE((
+                        SELECT 
+                            TOP (1) Product_Rate 
+                        FROM 
+                            RATE AS r
+                        WHERE 
+                            r.Product_Id = p.Product_Id
+                        ORDER BY
+                            CONVERT(DATETIME, r.Rate_Date) DESC
+                    ), 0) AS Item_Rate 
+                FROM 
+                    tbl_Product_Master AS p
+                    LEFT JOIN BRAND AS b
+            	    ON b.Brand_Id = p.Brand
+            	    LEFT JOIN PRODUCTGROUP AS pg
+            	    ON pg.Pro_Group_Id = p.Product_Group
+                    LEFT JOIN UOM AS u
+                    ON u.Unit_Id = p.UOM_Id
+            )
             SELECT 
                 g.*,
                 COALESCE((
                     SELECT 
-                        p.*,
-                        COALESCE((
-                            SELECT 
-                                TOP (1) Product_Rate 
-                            FROM 
-                                tbl_Pro_Rate_Master 
-                            WHERE 
-                                Product_Id = p.Product_Id
-                            ORDER BY
-                                CONVERT(DATETIME, Rate_Date) DESC
-                        ), 0) AS Item_Rate
-                        
+                        *
                     FROM 
-                        tbl_Product_Master AS p
+                        PRODUCTS AS p
                     WHERE
                         g.Pro_Group_Id = p.Product_Group
                     FOR JSON PATH

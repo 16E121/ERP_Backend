@@ -18,7 +18,7 @@ const projectController = () => {
                 .query(`
                     SELECT Project_Id, Project_Name
                     FROM tbl_Project_Master
-                    WHERE p.IsActive = 1`)
+                    WHERE IsActive = 1`)
             ).recordset;
             // WHERE
             // Company_id = @comp

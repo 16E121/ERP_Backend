@@ -1,6 +1,7 @@
 import sql from 'mssql';
 import { dataFound, failed, invalidInput, noData, servError, success } from '../../res.mjs';
-import { checkIsNumber } from '../../helper_functions.mjs';
+import { checkIsNumber, isEqualNumber } from '../../helper_functions.mjs';
+import { getUserBasedRights, getUserIdByAuth, getUserMenuRights, getUserTypeBasedRights, getUserTypeByAuth } from '../../middleware/miniAPIs.mjs';
 
 
 const appMenu = () => {
@@ -28,146 +29,146 @@ const appMenu = () => {
         }
     }
 
-    const getUserRights = async (req, res) => {
-        const { Auth } = req.query;
+    // const getUserRights = async (req, res) => {
+    //     const { Auth } = req.query;
 
-        if (!Auth) {
-            return res.status(400).json({ MainMenu: [], SubMenu: [], message: 'Invalid Auth', success: false });
-        }
+    //     if (!Auth) {
+    //         return res.status(400).json({ MainMenu: [], SubMenu: [], message: 'Invalid Auth', success: false });
+    //     }
 
-        try {
-            const request = new sql.Request();
-            request.input('Autheticate_Id', Auth)
+    //     try {
+    //         const request = new sql.Request();
+    //         request.input('Autheticate_Id', Auth)
 
-            const result = await request.execute('User_Rights_Online');
-            if (result.recordsets.length > 0) {
-                return res.status(200).json({ MainMenu: result.recordsets[0], SubMenu: result.recordsets[1], message: 'no Data', success: true });
-            } else {
-                return res.status(400).json({ MainMenu: [], SubMenu: [], message: 'no Data', success: true });
-            }
-        } catch (e) {
-            console.log(e)
-            return res.status(500).json({ MainMenu: [], SubMenu: [], message: 'Server Error', success: false });
-        }
-    }
+    //         const result = await request.execute('User_Rights_Online');
+    //         if (result.recordsets.length > 0) {
+    //             return res.status(200).json({ MainMenu: result.recordsets[0], SubMenu: result.recordsets[1], message: 'no Data', success: true });
+    //         } else {
+    //             return res.status(400).json({ MainMenu: [], SubMenu: [], message: 'no Data', success: true });
+    //         }
+    //     } catch (e) {
+    //         console.log(e)
+    //         return res.status(500).json({ MainMenu: [], SubMenu: [], message: 'Server Error', success: false });
+    //     }
+    // }
 
-    const modifyUserRights = async (req, res) => {
-        const { MenuId, MenuType, User, ReadRights, AddRights, EditRights, DeleteRights, PrintRights } = req.body;
+    // const modifyUserRights = async (req, res) => {
+    //     const { MenuId, MenuType, User, ReadRights, AddRights, EditRights, DeleteRights, PrintRights } = req.body;
 
-        try {
-            const transaction = new sql.Transaction();
+    //     try {
+    //         const transaction = new sql.Transaction();
 
-            await transaction.begin();
+    //         await transaction.begin();
 
-            try {
-                const deleteQuery = `DELETE FROM tbl_User_Rights WHERE User_Id = @UserId AND Menu_Id = @MenuId AND Menu_Type = @MenuType`;
-                await transaction.request()
-                    .input('UserId', User)
-                    .input('MenuId', MenuId)
-                    .input('MenuType', MenuType)
-                    .query(deleteQuery);
+    //         try {
+    //             const deleteQuery = `DELETE FROM tbl_User_Rights WHERE User_Id = @UserId AND Menu_Id = @MenuId AND Menu_Type = @MenuType`;
+    //             await transaction.request()
+    //                 .input('UserId', User)
+    //                 .input('MenuId', MenuId)
+    //                 .input('MenuType', MenuType)
+    //                 .query(deleteQuery);
 
-                const insertQuery = `
-                    INSERT INTO tbl_User_Rights 
-                        (User_Id, Menu_Id, Menu_Type, Read_Rights, Add_Rights, Edit_Rights, Delete_Rights, Print_Rights) 
-                    VALUES 
-                        (@UserId, @MenuId, @MenuType, @ReadRights, @AddRights, @EditRights, @DeleteRights, @PrintRights)`;
-                const result = await transaction.request()
-                    .input('UserId', User)
-                    .input('MenuId', MenuId)
-                    .input('MenuType', MenuType)
-                    .input('ReadRights', ReadRights)
-                    .input('AddRights', AddRights)
-                    .input('EditRights', EditRights)
-                    .input('DeleteRights', DeleteRights)
-                    .input('PrintRights', PrintRights)
-                    .query(insertQuery);
+    //             const insertQuery = `
+    //                 INSERT INTO tbl_User_Rights 
+    //                     (User_Id, Menu_Id, Menu_Type, Read_Rights, Add_Rights, Edit_Rights, Delete_Rights, Print_Rights) 
+    //                 VALUES 
+    //                     (@UserId, @MenuId, @MenuType, @ReadRights, @AddRights, @EditRights, @DeleteRights, @PrintRights)`;
+    //             const result = await transaction.request()
+    //                 .input('UserId', User)
+    //                 .input('MenuId', MenuId)
+    //                 .input('MenuType', MenuType)
+    //                 .input('ReadRights', ReadRights)
+    //                 .input('AddRights', AddRights)
+    //                 .input('EditRights', EditRights)
+    //                 .input('DeleteRights', DeleteRights)
+    //                 .input('PrintRights', PrintRights)
+    //                 .query(insertQuery);
 
-                if (result.rowsAffected[0] > 0) {
-                    await transaction.commit();
-                    return success(res, 'Changes saved successfully.');
-                } else {
-                    await transaction.rollback();
-                    return failed(res, 'Failed to save changes.');
-                }
-            } catch (er) {
-                await transaction.rollback();
-                return servError(er, res)
-            }
-        } catch (e) {
-            return servError(e, res)
-        }
-    }
+    //             if (result.rowsAffected[0] > 0) {
+    //                 await transaction.commit();
+    //                 return success(res, 'Changes saved successfully.');
+    //             } else {
+    //                 await transaction.rollback();
+    //                 return failed(res, 'Failed to save changes.');
+    //             }
+    //         } catch (er) {
+    //             await transaction.rollback();
+    //             return servError(er, res)
+    //         }
+    //     } catch (e) {
+    //         return servError(e, res)
+    //     }
+    // }
 
-    const getUserTypeRights = async (req, res) => {
-        const { UserType } = req.query;
+    // const getUserTypeRights = async (req, res) => {
+    //     const { UserType } = req.query;
 
-        if (!UserType) {
-            return res.status(400).json({ MainMenu: [], SubMenu: [], message: 'Invalid UserType', success: false });
-        }
+    //     if (!UserType) {
+    //         return res.status(400).json({ MainMenu: [], SubMenu: [], message: 'Invalid UserType', success: false });
+    //     }
 
-        try {
-            const request = new sql.Request();
-            request.input('UserTypeId', UserType)
+    //     try {
+    //         const request = new sql.Request();
+    //         request.input('UserTypeId', UserType)
 
-            const result = await request.execute('User_Rights_By_User_Type');
-            if (result.recordsets.length > 0) {
-                return res.status(200).json({ MainMenu: result.recordsets[0], SubMenu: result.recordsets[1], message: 'no Data', success: true });
-            } else {
-                return res.status(400).json({ MainMenu: [], SubMenu: [], message: 'no Data', success: true });
-            }
-        } catch (e) {
-            return res.status(500).json({ MainMenu: [], SubMenu: [], message: 'Server Error', success: false });
-        }
-    }
+    //         const result = await request.execute('User_Rights_By_User_Type');
+    //         if (result.recordsets.length > 0) {
+    //             return res.status(200).json({ MainMenu: result.recordsets[0], SubMenu: result.recordsets[1], message: 'no Data', success: true });
+    //         } else {
+    //             return res.status(400).json({ MainMenu: [], SubMenu: [], message: 'no Data', success: true });
+    //         }
+    //     } catch (e) {
+    //         return res.status(500).json({ MainMenu: [], SubMenu: [], message: 'Server Error', success: false });
+    //     }
+    // }
 
-    const modifyUserTypeRights = async (req, res) => {
-        const { MenuId, MenuType, UserType, ReadRights, AddRights, EditRights, DeleteRights, PrintRights } = req.body;
+    // const modifyUserTypeRights = async (req, res) => {
+    //     const { MenuId, MenuType, UserType, ReadRights, AddRights, EditRights, DeleteRights, PrintRights } = req.body;
 
-        try {
-            const transaction = new sql.Transaction();
+    //     try {
+    //         const transaction = new sql.Transaction();
 
-            await transaction.begin();
+    //         await transaction.begin();
 
-            try {
-                const deleteQuery = `DELETE FROM tbl_User_Type_Rights WHERE User_Type_Id = @UserTypeId AND Menu_Id = @MenuId AND Menu_Type = @MenuType`;
-                await transaction.request()
-                    .input('UserTypeId', UserType)
-                    .input('MenuId', MenuId)
-                    .input('MenuType', MenuType)
-                    .query(deleteQuery);
+    //         try {
+    //             const deleteQuery = `DELETE FROM tbl_User_Type_Rights WHERE User_Type_Id = @UserTypeId AND Menu_Id = @MenuId AND Menu_Type = @MenuType`;
+    //             await transaction.request()
+    //                 .input('UserTypeId', UserType)
+    //                 .input('MenuId', MenuId)
+    //                 .input('MenuType', MenuType)
+    //                 .query(deleteQuery);
 
-                const insertQuery = `
-                    INSERT INTO tbl_User_Type_Rights 
-                        (User_Type_Id, Menu_Id, Menu_Type, Read_Rights, Add_Rights, Edit_Rights, Delete_Rights, Print_Rights) 
-                    VALUES 
-                        (@UserTypeId, @MenuId, @MenuType, @ReadRights, @AddRights, @EditRights, @DeleteRights, @PrintRights)`;
-                const result = await transaction.request()
-                    .input('UserTypeId', UserType)
-                    .input('MenuId', MenuId)
-                    .input('MenuType', MenuType)
-                    .input('ReadRights', ReadRights)
-                    .input('AddRights', AddRights)
-                    .input('EditRights', EditRights)
-                    .input('DeleteRights', DeleteRights)
-                    .input('PrintRights', PrintRights)
-                    .query(insertQuery);
+    //             const insertQuery = `
+    //                 INSERT INTO tbl_User_Type_Rights 
+    //                     (User_Type_Id, Menu_Id, Menu_Type, Read_Rights, Add_Rights, Edit_Rights, Delete_Rights, Print_Rights) 
+    //                 VALUES 
+    //                     (@UserTypeId, @MenuId, @MenuType, @ReadRights, @AddRights, @EditRights, @DeleteRights, @PrintRights)`;
+    //             const result = await transaction.request()
+    //                 .input('UserTypeId', UserType)
+    //                 .input('MenuId', MenuId)
+    //                 .input('MenuType', MenuType)
+    //                 .input('ReadRights', ReadRights)
+    //                 .input('AddRights', AddRights)
+    //                 .input('EditRights', EditRights)
+    //                 .input('DeleteRights', DeleteRights)
+    //                 .input('PrintRights', PrintRights)
+    //                 .query(insertQuery);
 
-                if (result.rowsAffected[0] > 0) {
-                    await transaction.commit();
-                    return success(res, 'Changes saved.')
-                } else {
-                    await transaction.rollback();
-                    return failed(res, 'Failed to save changes');
-                }
-            } catch (er) {
-                await transaction.rollback();
-                return servError(er, res)
-            }
-        } catch (e) {
-            return servError(e, res)
-        }
-    }
+    //             if (result.rowsAffected[0] > 0) {
+    //                 await transaction.commit();
+    //                 return success(res, 'Changes saved.')
+    //             } else {
+    //                 await transaction.rollback();
+    //                 return failed(res, 'Failed to save changes');
+    //             }
+    //         } catch (er) {
+    //             await transaction.rollback();
+    //             return servError(er, res)
+    //         }
+    //     } catch (e) {
+    //         return servError(e, res)
+    //     }
+    // }
 
     const menuMaster = async (req, res) => {
 
@@ -303,15 +304,252 @@ const appMenu = () => {
         }
     }
 
+    // const getSubRoutes = (menuArray, subRouteArray) => {
+    //     for (let subRoute = 0; subRoute < subRouteArray.length; subRoute++) {
+
+    //         for (let MainMenu = 0; MainMenu < menuArray.length; MainMenu++) {
+
+    //             if (isEqualNumber(menuArray[MainMenu].id, subRouteArray[subRoute].parent_id)) {
+    //                 menuArray[MainMenu] = {
+    //                     ...menuArray[MainMenu],
+    //                     SubRoute: menuArray[MainMenu].SubRouting.push(subRouteArray[subRoute])
+    //                 } 
+    //             }
+
+    //             // for (let oo of o.SubMenu || []) {
+    //             //     if (isEqualNumber(oo.Read_Rights, 1) && oo.url !== '') {
+    //             //         navigateToPage(oo);
+    //             //         return true;
+    //             //     }
+
+    //             //     for (let ooo of oo.ChildMenu || []) {
+    //             //         if (isEqualNumber(ooo.Read_Rights, 1) && ooo.url !== '') {
+    //             //             navigateToPage(ooo);
+    //             //             return true;
+    //             //         }
+    //             //     }
+    //             // }
+    //         }
+    //         return false;
+    //     }
+    // }
+
+    const newAppMenu = async (req, res) => {
+        const Auth = req.header('Authorization');
+
+        try {
+            const userRights = await getUserMenuRights(Auth);
+
+            if (Array.isArray(userRights)) {
+                const mainMenu = userRights.filter(menu => isEqualNumber(menu.menu_type, 1)).sort((a, b) => a.display_order - b.display_order);
+                const subMenu = userRights.filter(menu => isEqualNumber(menu.menu_type, 2)).sort((a, b) => a.display_order - b.display_order);
+                const childMenu = userRights.filter(menu => isEqualNumber(menu.menu_type, 3)).sort((a, b) => a.display_order - b.display_order);
+                const subRoutings = userRights.filter(menu => isEqualNumber(menu.menu_type, 0));
+
+                const menuStrucre = mainMenu.map(main => ({
+                    ...main,
+                    SubMenu: subMenu.filter(sub => isEqualNumber(sub.parent_id, main.id)).map(sub => ({
+                        ...sub,
+                        ChildMenu: childMenu.filter(child => isEqualNumber(child.parent_id, sub.id))
+                    }))
+                }));
+
+                dataFound(res, menuStrucre, 'dataFound', { subRoutings })
+            } else {
+                failed(res);
+            }
+        } catch (e) {
+            servError(e, res);
+        }
+    }
+
+    const getNewUserBasedRights = async (req, res) => {
+        const Auth = req.header('Authorization');
+
+        if (!Auth) {
+            return invalidInput(res, 'Auth is required');
+        }
+
+        try {
+            const userid = await getUserIdByAuth(Auth);
+            const result = await getUserBasedRights(userid);
+
+            if (Array.isArray(result)) {
+                const mainMenu = result.filter(menu => isEqualNumber(menu.menu_type, 1)).sort((a, b) => a.display_order - b.display_order);
+                const subMenu = result.filter(menu => isEqualNumber(menu.menu_type, 2)).sort((a, b) => a.display_order - b.display_order);
+                const childMenu = result.filter(menu => isEqualNumber(menu.menu_type, 3)).sort((a, b) => a.display_order - b.display_order);
+                const subRoutings = result
+                    .filter(menu => isEqualNumber(menu.menu_type, 0))
+                    .sort((a, b) => a.parent_id - b.parent_id);
+
+                const buildRoutesTree = (routes, parentId = null) => {
+                    return routes
+                        .filter(route => route.parent_id === parentId)
+                        .map(route => ({
+                            ...route,
+                            SubRoutes: buildRoutesTree(routes, route.id)
+                        }));
+                };
+
+                const nestedRoutes = buildRoutesTree(subRoutings);
+
+                const menuStrucre = mainMenu.map(main => ({
+                    ...main,
+                    SubMenu: subMenu.filter(sub => isEqualNumber(sub.parent_id, main.id)).map(sub => ({
+                        ...sub,
+                        ChildMenu: childMenu.filter(child => isEqualNumber(child.parent_id, sub.id)),
+                    }))
+                }));
+
+                dataFound(res, menuStrucre, 'data Found', { subRoutings, nestedRoutes })
+            } else {
+                failed(res);
+            }
+        } catch (e) {
+            console.log(e)
+            servError(e, res)
+        }
+    }
+
+    const newModifyUserRights = async (req, res) => {
+        const { MenuId, User, ReadRights, AddRights, EditRights, DeleteRights, PrintRights } = req.body;
+
+        const transaction = new sql.Transaction();
+
+        try {
+            await transaction.begin();
+            await new sql.Request(transaction)
+                .input('UserId', User)
+                .input('MenuId', MenuId)
+                .query(`DELETE FROM tbl_AppMenu_UserRights WHERE UserId = @UserId AND MenuId = @MenuId`);
+
+            const result = await new sql.Request(transaction)
+                .input('UserId', User)
+                .input('MenuId', MenuId)
+                .input('ReadRights', ReadRights)
+                .input('AddRights', AddRights)
+                .input('EditRights', EditRights)
+                .input('DeleteRights', DeleteRights)
+                .input('PrintRights', PrintRights)
+                .query(`
+                    INSERT INTO tbl_AppMenu_UserRights 
+                        (UserId, MenuId, Read_Rights, Add_Rights, Edit_Rights, Delete_Rights, Print_Rights) 
+                    VALUES 
+                        (@UserId, @MenuId, @ReadRights, @AddRights, @EditRights, @DeleteRights, @PrintRights)`
+                );
+
+            if (result.rowsAffected[0] > 0) {
+                await transaction.commit();
+                return success(res, 'Changes saved successfully.');
+            } else {
+                throw new Error('Failed to save changes.')
+            }
+        } catch (e) {
+            await transaction.rollback();
+            return servError(e, res)
+        }
+    }
+
+    const getNewUserTypeBasedRights = async (req, res) => {
+        const { UserType } = req.query;
+
+        if (!UserType) {
+            return invalidInput(res, 'UserType is required');
+        }
+
+        try {
+            const result = await getUserTypeBasedRights(UserType);
+
+            if (Array.isArray(result)) {
+                const mainMenu = result.filter(menu => isEqualNumber(menu.menu_type, 1)).sort((a, b) => a.display_order - b.display_order);
+                const subMenu = result.filter(menu => isEqualNumber(menu.menu_type, 2)).sort((a, b) => a.display_order - b.display_order);
+                const childMenu = result.filter(menu => isEqualNumber(menu.menu_type, 3)).sort((a, b) => a.display_order - b.display_order);
+                const subRoutings = result
+                    .filter(menu => isEqualNumber(menu.menu_type, 0))
+                    .sort((a, b) => a.parent_id - b.parent_id);
+
+                const buildRoutesTree = (routes, parentId = null) => {
+                    return routes
+                        .filter(route => route.parent_id === parentId)
+                        .map(route => ({
+                            ...route,
+                            SubRoutes: buildRoutesTree(routes, route.id)
+                        }));
+                };
+
+                const nestedRoutes = buildRoutesTree(subRoutings);
+
+                const menuStrucre = mainMenu.map(main => ({
+                    ...main,
+                    SubMenu: subMenu.filter(sub => isEqualNumber(sub.parent_id, main.id)).map(sub => ({
+                        ...sub,
+                        ChildMenu: childMenu.filter(child => isEqualNumber(child.parent_id, sub.id)),
+                    }))
+                }));
+
+                dataFound(res, menuStrucre, 'data Found', { subRoutings, nestedRoutes })
+            } else {
+                failed(res);
+            }
+        } catch (e) {
+            console.log(e)
+            servError(e, res)
+        }
+    }
+
+    const newModifyUserTypeRights = async (req, res) => {
+        const { MenuId, UserType, ReadRights, AddRights, EditRights, DeleteRights, PrintRights } = req.body;
+
+        const transaction = new sql.Transaction();
+
+        try {
+            await transaction.begin();
+            await new sql.Request(transaction)
+                .input('UserType', UserType)
+                .input('MenuId', MenuId)
+                .query(`DELETE FROM tbl_AppMenu_UserTypeRights WHERE UserTypeId = @UserType AND MenuId = @MenuId`);
+
+            const result = await new sql.Request(transaction)
+                .input('UserType', UserType)
+                .input('MenuId', MenuId)
+                .input('ReadRights', ReadRights)
+                .input('AddRights', AddRights)
+                .input('EditRights', EditRights)
+                .input('DeleteRights', DeleteRights)
+                .input('PrintRights', PrintRights)
+                .query(`
+                    INSERT INTO tbl_AppMenu_UserTypeRights 
+                        (UserTypeId, MenuId, Read_Rights, Add_Rights, Edit_Rights, Delete_Rights, Print_Rights) 
+                    VALUES 
+                        (@UserType, @MenuId, @ReadRights, @AddRights, @EditRights, @DeleteRights, @PrintRights)`
+                );
+
+            if (result.rowsAffected[0] > 0) {
+                await transaction.commit();
+                return success(res, 'Changes saved successfully.');
+            } else {
+                throw new Error('Failed to save changes.')
+            }
+        } catch (e) {
+            await transaction.rollback();
+            return servError(e, res)
+        }
+    }
+
     return {
         getMenu,
-        getUserRights,
-        modifyUserRights,
-        getUserTypeRights,
-        modifyUserTypeRights,
+        // getUserRights,
+        // modifyUserRights,
+        // getUserTypeRights,
+        // modifyUserTypeRights,
         menuMaster,
         createMenu,
-        updateMenu
+        updateMenu,
+        newAppMenu,
+        getNewUserBasedRights,
+        newModifyUserRights,
+        getNewUserTypeBasedRights,
+        newModifyUserTypeRights,
     }
 }
 

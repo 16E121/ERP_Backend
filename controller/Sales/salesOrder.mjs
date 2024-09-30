@@ -1,5 +1,5 @@
 import sql from 'mssql'
-import { dataFound, failed, invalidInput, noData, servError, success } from '../../res.mjs';
+import { dataFound, invalidInput, noData, servError, success } from '../../res.mjs';
 import { checkIsNumber } from '../../helper_functions.mjs'
 import getImage from '../../middleware/getImageIfExist.mjs';
 
@@ -7,130 +7,123 @@ import getImage from '../../middleware/getImageIfExist.mjs';
 const SaleOrder = () => {
 
     const saleOrderCreation = async (req, res) => {
-        const { Company_Id, So_Date, Retailer_Id, Sales_Person_Id, Branch_Id, Narration, Created_by, Product_Array } = req.body;
+        const { 
+            So_Date, Retailer_Id, Sales_Person_Id, Branch_Id, 
+            Narration, Created_by, Product_Array
+        } = req.body;
 
-        if (!checkIsNumber(Company_Id) || !checkIsNumber(Retailer_Id) || !checkIsNumber(Sales_Person_Id) || !checkIsNumber(Created_by) || !Array.isArray(Product_Array)) {
-            return invalidInput(res, 'Company_Id, Retailer_Id, Sales_Person_Id, Created_by, Product_Array is Required')
+        if (
+            !checkIsNumber(Retailer_Id) 
+            || !checkIsNumber(Sales_Person_Id) 
+            || !checkIsNumber(Created_by) 
+            || (!Array.isArray(Product_Array) || Product_Array.length === 0)
+        ) {
+            return invalidInput(res, 'Retailer_Id, Sales_Person_Id, Created_by, Product_Array is Required')
         }
+
+        const transaction = new sql.Transaction();
 
         try {
 
-            const companyGet = await new sql.Request()
-                .input('Company_Id', Company_Id)
-                .query(`SELECT Company_Code FROM tbl_Company_Master WHERE Company_id = @Company_Id`)
-
-            if (companyGet.recordset.length === 0) {
-                return failed(res, 'Invalid Company')
-            }
-
-            const saleOrderId = await new sql.Request()
-                .input('Company_Id', Company_Id)
-                .query(`SELECT COALESCE(MAX(Sales_Order_Id), 0) AS Max_Id FROM tbl_Sales_Order_Gen_Info WHERE Company_Id = @Company_Id`);
-
-            const Company_Code = companyGet.recordset[0].Company_Code;
-            const Sales_Order_Id = Number(saleOrderId.recordset[0].Max_Id) + 1;
-
-            const paddedOrderId = Sales_Order_Id.toString().padStart(7, '0');
-
-            const Sales_Order_No = Company_Code + paddedOrderId;
-
             let Total_Invoice_value = 0;
-            Product_Array.map(o => {
-                Total_Invoice_value += (parseInt(o?.Bill_Qty) * Number(o?.Item_Rate));
+            Product_Array.forEach(o => {
+                Total_Invoice_value += (parseInt(o?.Bill_Qty) * Number(o?.Item_Rate) ?? 0);
             })
-
-            const transaction = new sql.Transaction();
 
             await transaction.begin();
 
-            try {
-                const request = new sql.Request(transaction);
-                request.input('comp', Company_Id);
-                request.input('orderid', Sales_Order_Id);
-                request.input('orderno', Sales_Order_No);
-                request.input('date', So_Date ? So_Date : new Date());
-                request.input('retailer', Retailer_Id);
-                request.input('salesperson', Sales_Person_Id);
-                request.input('branch', Branch_Id);
-                request.input('roundoff', Total_Invoice_value ? parseInt(Total_Invoice_value) : 0);
-                request.input('totalinvoice', Total_Invoice_value ? Total_Invoice_value : 0);
-                request.input('narration', Narration);
-                request.input('cancel', 0);
-                request.input('createdby', Created_by);
-                request.input('alterby', Created_by);
-                request.input('createdon', new Date());
-                request.input('alteron', new Date());
+            const request = new sql.Request(transaction);
+            request.input('date', So_Date ? So_Date : new Date());
+            request.input('retailer', Retailer_Id);
+            request.input('salesperson', Sales_Person_Id);
+            request.input('branch', Branch_Id ?? '');
+            request.input('roundoff', Total_Invoice_value ? parseInt(Total_Invoice_value) : 0);
+            request.input('totalinvoice', Total_Invoice_value ? Total_Invoice_value : 0);
+            request.input('narration', Narration);
+            request.input('cancel', 0);
+            request.input('createdby', Created_by);
+            request.input('alterby', Created_by);
+            request.input('createdon', new Date());
+            request.input('alteron', new Date());
 
-                const result = await request.query(`
-                    INSERT INTO tbl_Sales_Order_Gen_Info 
-                        (Company_Id, Sales_Order_Id, Sales_Order_No, So_Date, Retailer_Id, Sales_Person_Id, Branch_Id, Round_off, 
-                            Total_Invoice_value, Narration, Cancel_status, Created_by, Altered_by, Created_on, Alterd_on)
-                    VALUES 
-                        (@comp, @orderid, @orderno, @date, @retailer, @salesperson, @branch, @roundoff, 
-                            @totalinvoice, @narration, @cancel, @createdby, @alterby, @createdon, @alteron);
+            const result = await request.query(`
+                INSERT INTO tbl_Sales_Order_Gen_Info (
+                    So_Date, Retailer_Id, Sales_Person_Id, Branch_Id, Round_off, Total_Invoice_value, 
+                    Narration, Cancel_status, Created_by, Altered_by, Created_on, Alterd_on
+                ) VALUES (
+                    @date, @retailer, @salesperson, @branch, @roundoff, @totalinvoice, 
+                    @narration, @cancel, @createdby, @alterby, @createdon, @alteron
+                );
+                SELECT SCOPE_IDENTITY() AS OrderId`
+            );
 
-                        SELECT SCOPE_IDENTITY() AS OrderId`);
-
-                const OrderId = result.recordset[0].OrderId;
-
-                for (let i = 0; i < Product_Array.length; i++) {
-                    const product = Product_Array[i];
-                    const request2 = new sql.Request(transaction);
-
-                    request2.input('Company_Id', Company_Id);
-                    request2.input('Sales_Order_Id', OrderId);
-                    request2.input('S_No', i + 1);
-                    request2.input('Item_Id', product.Item_Id);
-                    request2.input('Bill_Qty', Number(product.Bill_Qty));
-                    request2.input('Item_Rate', Number(product.Item_Rate));
-                    request2.input('Free_Qty', 0);
-                    request2.input('Total_Qty', product.Bill_Qty);
-                    request2.input('Amount', parseInt(product?.Bill_Qty) * Number(product?.Item_Rate));
-                    request2.input('Created_on', new Date());
-
-                    await request2.query(`
-                        INSERT INTO tbl_Sales_Order_Stock_Info 
-                            (Company_Id, Sales_Order_Id, S_No, Item_Id, Bill_Qty, Item_Rate, Free_Qty, Total_Qty, Amount, Created_on)
-                        VALUES
-                            (@Company_Id, @Sales_Order_Id, @S_No, @Item_Id, @Bill_Qty, @Item_Rate, @Free_Qty, @Total_Qty, @Amount, @Created_on);
-                    `);
-                }
-
-                await transaction.commit();
-
-                success(res, 'Order Created!')
-
-            } catch (e) {
-                await transaction.rollback();
-                return servError(e, res)
+            if (result.rowsAffected[0] === 0) {
+                throw new Error('Failed to create order, Try again.');
             }
 
+            const OrderId = result.recordset[0].OrderId;
 
+            for (let i = 0; i < Product_Array.length; i++) {
+                const product = Product_Array[i];
+                const request2 = new sql.Request(transaction);
+
+                request2.input('Sales_Order_Id', OrderId);
+                request2.input('So_Date', So_Date ? So_Date : new Date());
+                request2.input('S_No', i + 1);
+                request2.input('Item_Id', product.Item_Id);
+                request2.input('Bill_Qty', Number(product.Bill_Qty));
+                request2.input('Item_Rate', Number(product.Item_Rate));
+                request2.input('Free_Qty', 0);
+                request2.input('Total_Qty', product.Bill_Qty);
+                request2.input('Amount', parseInt(product?.Bill_Qty) * Number(product?.Item_Rate));
+                request2.input('Created_on', new Date());
+                request2.input('Unit', product.UOM);
+
+                const result2 = await request2.query(`
+                    INSERT INTO tbl_Sales_Order_Stock_Info 
+                        (Sales_Order_Id, So_Date, S_No, Item_Id, Bill_Qty, Item_Rate, Free_Qty, Total_Qty, Amount, Created_on, Unit_Id)
+                    VALUES
+                        (@Sales_Order_Id, @So_Date, @S_No, @Item_Id, @Bill_Qty, @Item_Rate, @Free_Qty, @Total_Qty, @Amount, @Created_on, @Unit);
+                `);
+
+                if (result2.rowsAffected[0] === 0) {
+                    throw new Error('Failed to create order, Try again.');
+                }
+            }
+
+            await transaction.commit();
+
+            success(res, 'Order Created!')
         } catch (e) {
-            servError(e, res,)
+            await transaction.rollback();
+            servError(e, res)
         }
-
     }
 
     const editSaleOrder = async (req, res) => {
         const { So_Id, So_Date, Retailer_Id, Sales_Person_Id, Branch_Id, Narration, Created_by, Product_Array } = req.body;
 
-        if (!checkIsNumber(So_Id) || !checkIsNumber(Retailer_Id) || !checkIsNumber(Sales_Person_Id) || !checkIsNumber(Created_by) || !Array.isArray(Product_Array)) {
+        if (
+            !checkIsNumber(So_Id) 
+            || !checkIsNumber(Retailer_Id) 
+            || !checkIsNumber(Sales_Person_Id) 
+            || !checkIsNumber(Created_by) 
+            || (!Array.isArray(Product_Array) || Product_Array.length === 0)
+        ) {
             return invalidInput(res, 'So_Id, Retailer_Id, Sales_Person_Id, Created_by, Product_Array is Required')
         }
+
+        const transaction = new sql.Transaction();
 
         try {
             let Total_Invoice_value = 0;
             Product_Array.map(o => {
-                Total_Invoice_value += (parseInt(o?.Bill_Qty) * Number(o?.Item_Rate));
+                Total_Invoice_value += (parseInt(o?.Bill_Qty) * Number(o?.Item_Rate) ?? 0);
             })
-
-            const transaction = new sql.Transaction();
 
             await transaction.begin();
 
-            try {
-                const updateRequest = new sql.Request(transaction);
+            const updateRequest = new sql.Request(transaction);
                 updateRequest.input('date', So_Date ? So_Date : new Date());
                 updateRequest.input('retailer', Retailer_Id);
                 updateRequest.input('salesPerson', Sales_Person_Id);
@@ -155,10 +148,11 @@ const SaleOrder = () => {
                         Total_Invoice_value = @total
                     WHERE
                         So_Id = @soid
-                    SELECT Company_Id FROM tbl_Sales_Order_Gen_Info WHERE So_Id = @soid
                 `);
 
-                const Company_Id = updateResult.recordset[0]?.Company_Id;
+                if (updateResult.rowsAffected[0] === 0) {
+                    throw new Error('Failed to update order, Try again')
+                }
 
                 await new sql.Request(transaction)
                     .input('soid', So_Id)
@@ -168,7 +162,6 @@ const SaleOrder = () => {
                     const product = Product_Array[i];
                     const request2 = new sql.Request(transaction);
 
-                    request2.input('Company_Id', Company_Id);
                     request2.input('Sales_Order_Id', So_Id);
                     request2.input('S_No', i + 1);
                     request2.input('Item_Id', product.Item_Id);
@@ -179,36 +172,53 @@ const SaleOrder = () => {
                     request2.input('Amount', parseInt(product?.Bill_Qty) * Number(product?.Item_Rate));
                     request2.input('Created_on', new Date());
 
-                    await request2.query(`
+                    const result2 = await request2.query(`
                         INSERT INTO tbl_Sales_Order_Stock_Info 
-                            (Company_Id, Sales_Order_Id, S_No, Item_Id, Bill_Qty, Item_Rate, Free_Qty, Total_Qty, Amount, Created_on)
+                            (Sales_Order_Id, S_No, Item_Id, Bill_Qty, Item_Rate, Free_Qty, Total_Qty, Amount, Created_on)
                         VALUES
-                            (@Company_Id, @Sales_Order_Id, @S_No, @Item_Id, @Bill_Qty, @Item_Rate, @Free_Qty, @Total_Qty, @Amount, @Created_on);
+                            (@Sales_Order_Id, @S_No, @Item_Id, @Bill_Qty, @Item_Rate, @Free_Qty, @Total_Qty, @Amount, @Created_on);
                     `);
+
+                    if (result2.rowsAffected[0] === 0) {
+                        throw new Error('Failed to update order, Try again')
+                    }
                 }
 
                 await transaction.commit();
-
                 success(res, 'Changes Saved!')
 
-            } catch (e) {
-                await transaction.rollback();
-                return servError(e, res);
-            }
         } catch (e) {
+            transaction.rollback();
             servError(e, res)
         }
     }
 
     const getSaleOrder = async (req, res) => {
-        const { Company_Id, Fromdate, Todate, Retailer_Id, Cancel_status, Created_by, Sales_Person_Id } = req.query;
+        const { Fromdate, Todate, Retailer_Id, Cancel_status, Created_by, Sales_Person_Id } = req.query;
 
-        if (!checkIsNumber(Company_Id)) {
-            return invalidInput(res, 'Company_Id is required, Optional: Fromdate, Todate, Retailer_Id, Cancel_status, Created_by, Sales_Person_Id');
+        if (!Fromdate || !Todate) {
+            return invalidInput(res, 'Fromdate and Todate is required. Retailer_Id, Cancel_status, Created_by, Sales_Person_Id are filters');
         }
 
         try {
             let query = `
+            WITH SALES_DETAILS AS (
+                SELECT
+            		oi.*,
+            		COALESCE(pm.Product_Name, 'unknown') AS Product_Name,
+                    COALESCE(pm.Product_Image_Name, 'unknown') AS Product_Image_Name,
+                    COALESCE(u.Units, 'unknown') AS UOM
+            	FROM
+            		tbl_Sales_Order_Stock_Info AS oi
+                    LEFT JOIN tbl_Product_Master AS pm
+                    ON pm.Product_Id = oi.Item_Id
+                    LEFT JOIN tbl_UOM AS u
+                    ON u.Unit_Id = oi.Unit_Id
+                WHERE
+                    CONVERT(DATE, oi.So_Date) >= CONVERT(DATE, @from)
+            	    AND
+            	    CONVERT(DATE, oi.So_Date) <= CONVERT(DATE, @to)
+            )
             SELECT 
             	so.*,
             	COALESCE(rm.Retailer_Name, 'unknown') AS Retailer_Name,
@@ -218,16 +228,11 @@ const SaleOrder = () => {
 
             	COALESCE((
             		SELECT
-            			oi.*,
-            			COALESCE(pm.Product_Name, 'unknown') AS Product_Name,
-                        COALESCE(pm.Product_Image_Name, 'unknown') AS Product_Image_Name
+            			sd.*
             		FROM
-            			tbl_Sales_Order_Stock_Info AS oi
-
-                        LEFT JOIN tbl_Product_Master pm
-                        ON pm.Product_Id = oi.Item_Id
+            			SALES_DETAILS AS sd
             		WHERE
-            			oi.Sales_Order_Id = so.So_Id
+            			sd.Sales_Order_Id = so.So_Id
             		FOR JSON PATH
             	), '[]') AS Products_List
             
@@ -247,16 +252,10 @@ const SaleOrder = () => {
             	ON cb.UserId = so.Created_by
                         
             WHERE
-            	so.Company_Id IS NOT NULL
-            `;
-
-            if (Fromdate && Todate) {
-                query += `
-                AND
-            	CONVERT(DATE, so.So_Date) >= CONVERT(DATE, @from)
+                CONVERT(DATE, so.So_Date) >= CONVERT(DATE, @from)
             	AND
-            	CONVERT(DATE, so.So_Date) <= CONVERT(DATE, @to) `
-            }
+            	CONVERT(DATE, so.So_Date) <= CONVERT(DATE, @to) 
+            `;
 
             if (Retailer_Id) {
                 query += `
@@ -286,7 +285,6 @@ const SaleOrder = () => {
             ORDER BY CONVERT(DATETIME, so.So_Date) DESC`;
 
             const request = new sql.Request();
-            request.input('comp', Company_Id);
             request.input('from', Fromdate);
             request.input('to', Todate);
             request.input('retailer', Retailer_Id);
@@ -307,7 +305,7 @@ const SaleOrder = () => {
                         ...oo,
                         ProductImageUrl: getImage('products', oo?.Product_Image_Name)
                     }))
-                }))
+                }));
                 dataFound(res, withImage);
             } else {
                 noData(res)
