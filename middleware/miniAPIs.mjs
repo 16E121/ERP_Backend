@@ -223,9 +223,9 @@ export const getUserMenuRights = async (Auth) => {
                     FROM 
                         tbl_AppMenu m
                     LEFT JOIN 
-                        tbl_AppMenu_UserRights ur ON ur.UserId = @userid AND ur.id = m.id
+                        tbl_AppMenu_UserRights ur ON ur.UserId = @userid AND ur.MenuId = m.id
                     LEFT JOIN 
-                        tbl_AppMenu_UserTypeRights utr ON utr.UserTypeId = @usertype AND utr.id = m.id`
+                        tbl_AppMenu_UserTypeRights utr ON utr.UserTypeId = @usertype AND utr.MenuId = m.id`
                 );
 
             const result = await request;
