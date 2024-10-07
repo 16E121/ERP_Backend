@@ -150,11 +150,7 @@ const LoginController = () => {
     };
 
     const getUserByAuth = async (req, res) => {
-        const { Auth } = req.query;
-
-        if (!Auth) {
-            return invalidInput(res, 'Auth required');
-        }
+        const Auth = req.header('Authorization')
 
         try {
             const query = `

@@ -1,6 +1,8 @@
 import sql from 'mssql';
 import { checkIsNumber, isEqualNumber } from '../helper_functions.mjs';
 
+const miniResponse = ({status = true, dataArray = [], dataObject = {}}) => ({status, dataArray, dataObject})
+
 export const getUserType = async (UserId) => {
     if (!checkIsNumber(UserId)) {
         return false;
@@ -234,5 +236,138 @@ export const getUserMenuRights = async (Auth) => {
     } catch (e) {
         console.error(e);
         return false;
+    }
+}
+
+export const getRetailerInfo = async (retailerId) => {
+    
+    try {
+        if (!checkIsNumber(retailerId)) {
+            throw new Error('Retailer id not received');
+        }
+        const request = new sql.Request()
+            .input('retail', retailerId)
+            .query(`
+                SELECT 
+                    rm.*,
+                    COALESCE(rom.Route_Name, '') AS RouteGet,
+                    COALESCE(am.Area_Name, '') AS AreaGet,
+                    COALESCE(sm.State_Name, '') AS StateGet,
+                    COALESCE(cm.Company_Name, '') AS Company_Name,
+                    COALESCE(modify.Name, '') AS lastModifiedBy,
+                    COALESCE(created.Name, '') AS createdBy,
+                    COALESCE((
+                        SELECT 
+                            TOP (1) *
+                        FROM 
+                            tbl_Retailers_Locations
+                        WHERE
+                            Retailer_Id = rm.Retailer_Id
+                            AND
+                            isActiveLocation = 1
+                        FOR JSON PATH, WITHOUT_ARRAY_WRAPPER
+                    ), '{}') AS VERIFIED_LOCATION
+                FROM
+                    tbl_Retailers_Master AS rm
+                
+                LEFT JOIN
+                    tbl_Route_Master AS rom
+                    ON rom.Route_Id = rm.Route_Id
+                LEFT JOIN
+                    tbl_Area_Master AS am
+                    ON am.Area_Id = rm.Area_Id
+                LEFT JOIN
+                    tbl_State_Master AS sm
+                    ON sm.State_Id = rm.State_Id
+                LEFT JOIN
+                    tbl_Company_Master AS cm
+                    ON cm.Company_id = rm.Company_Id
+                LEFT JOIN
+                    tbl_Users AS modify
+                    ON modify.UserId = rm.Updated_By
+                LEFT JOIN
+                    tbl_Users AS created
+                    ON created.UserId = rm.Created_By
+                
+                WHERE
+                	rm.Retailer_Id = @retail
+                `)
+
+        const result = await request;
+
+        if (result.recordset.length > 0) {
+            return miniResponse({
+                status: true,
+                dataObject: (await request).recordset[0]
+            })
+        } else {
+            throw new Error('Retailer not found')
+        }
+    } catch (e) {
+        console.error(e);
+        return miniResponse({
+            status: false,
+        });
+    }
+}
+
+export const getProducts = async () => {
+    try {
+        const request = new sql.Request().query(`
+            WITH UOM AS (
+                SELECT *
+                FROM tbl_UOM
+            ),
+            RATE AS (
+                SELECT * 
+                FROM tbl_Pro_Rate_Master
+            ),
+            BRAND AS (
+                SELECT *
+                FROM tbl_Brand_Master
+            ),
+            PRODUCTGROUP AS (
+                SELECT *
+                FROM tbl_Product_Group
+            )
+            SELECT 
+                p.*,
+                COALESCE(b.Brand_Name, 'NOT FOUND') AS Brand_Name,
+                COALESCE(pg.Pro_Group, 'NOT FOUND') AS Pro_Group,
+                COALESCE(u.Units, 'NOT FOUND') AS Units,
+                COALESCE((
+                    SELECT 
+                        TOP (1) Product_Rate 
+                    FROM 
+                        RATE AS r
+                    WHERE 
+                        r.Product_Id = p.Product_Id
+                    ORDER BY
+                        CONVERT(DATETIME, r.Rate_Date) DESC
+                ), 0) AS Item_Rate 
+            FROM 
+                tbl_Product_Master AS p
+                LEFT JOIN BRAND AS b
+                ON b.Brand_Id = p.Brand
+                LEFT JOIN PRODUCTGROUP AS pg
+                ON pg.Pro_Group_Id = p.Product_Group
+                LEFT JOIN UOM AS u
+                ON u.Unit_Id = p.UOM_Id
+            `);
+        const result = await request;
+
+        if (result.recordset.length > 0) {
+            return miniResponse({
+                status: true,
+                dataArray: result.recordset
+            })
+        } else {
+            throw new Error('No data')
+        }
+    } catch (e) {
+        console.error(e);
+        return miniResponse({
+            status: false,
+        });
     }
 }

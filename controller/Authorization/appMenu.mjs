@@ -4,6 +4,15 @@ import { checkIsNumber, isEqualNumber } from '../../helper_functions.mjs';
 import { getUserBasedRights, getUserIdByAuth, getUserMenuRights, getUserTypeBasedRights, getUserTypeByAuth } from '../../middleware/miniAPIs.mjs';
 
 
+const buildRoutesTree = (routes, parentId = null) => {
+    return routes
+        .filter(route => route.parent_id === parentId)
+        .map(route => ({
+            ...route,
+            SubRoutes: buildRoutesTree(routes, route.id)
+        }));
+};
+
 const appMenu = () => {
 
     const getMenu = async (req, res) => {
@@ -344,17 +353,27 @@ const appMenu = () => {
                 const mainMenu = userRights.filter(menu => isEqualNumber(menu.menu_type, 1)).sort((a, b) => a.display_order - b.display_order);
                 const subMenu = userRights.filter(menu => isEqualNumber(menu.menu_type, 2)).sort((a, b) => a.display_order - b.display_order);
                 const childMenu = userRights.filter(menu => isEqualNumber(menu.menu_type, 3)).sort((a, b) => a.display_order - b.display_order);
-                const subRoutings = userRights.filter(menu => isEqualNumber(menu.menu_type, 0));
+
+                const subRoutings = userRights
+                    .filter(menu => isEqualNumber(menu.menu_type, 0))
+                    .sort((a, b) => a.parent_id - b.parent_id);
+
+                const nestedRoutes = buildRoutesTree(subRoutings);
 
                 const menuStrucre = mainMenu.map(main => ({
                     ...main,
                     SubMenu: subMenu.filter(sub => isEqualNumber(sub.parent_id, main.id)).map(sub => ({
                         ...sub,
-                        ChildMenu: childMenu.filter(child => isEqualNumber(child.parent_id, sub.id))
-                    }))
+                        ChildMenu: childMenu.filter(child => isEqualNumber(child.parent_id, sub.id)).map(child => ({
+                            ...child,
+                            SubRoutes: buildRoutesTree(subRoutings, child.id)
+                        })),
+                        SubRoutes: buildRoutesTree(subRoutings, sub.id)
+                    })),
+                    SubRoutes: buildRoutesTree(subRoutings, main.id)
                 }));
 
-                dataFound(res, menuStrucre, 'dataFound', { subRoutings })
+                dataFound(res, menuStrucre, 'data Found', { subRoutings, nestedRoutes })
             } else {
                 failed(res);
             }
@@ -365,10 +384,6 @@ const appMenu = () => {
 
     const getNewUserBasedRights = async (req, res) => {
         const Auth = req.header('Authorization');
-
-        if (!Auth) {
-            return invalidInput(res, 'Auth is required');
-        }
 
         try {
             const userid = await getUserIdByAuth(Auth);
@@ -382,23 +397,19 @@ const appMenu = () => {
                     .filter(menu => isEqualNumber(menu.menu_type, 0))
                     .sort((a, b) => a.parent_id - b.parent_id);
 
-                const buildRoutesTree = (routes, parentId = null) => {
-                    return routes
-                        .filter(route => route.parent_id === parentId)
-                        .map(route => ({
-                            ...route,
-                            SubRoutes: buildRoutesTree(routes, route.id)
-                        }));
-                };
-
                 const nestedRoutes = buildRoutesTree(subRoutings);
 
                 const menuStrucre = mainMenu.map(main => ({
                     ...main,
                     SubMenu: subMenu.filter(sub => isEqualNumber(sub.parent_id, main.id)).map(sub => ({
                         ...sub,
-                        ChildMenu: childMenu.filter(child => isEqualNumber(child.parent_id, sub.id)),
-                    }))
+                        ChildMenu: childMenu.filter(child => isEqualNumber(child.parent_id, sub.id)).map(child => ({
+                            ...child,
+                            SubRoutes: buildRoutesTree(subRoutings, child.id)
+                        })),
+                        SubRoutes: buildRoutesTree(subRoutings, sub.id)
+                    })),
+                    SubRoutes: buildRoutesTree(subRoutings, main.id)
                 }));
 
                 dataFound(res, menuStrucre, 'data Found', { subRoutings, nestedRoutes })
@@ -468,23 +479,19 @@ const appMenu = () => {
                     .filter(menu => isEqualNumber(menu.menu_type, 0))
                     .sort((a, b) => a.parent_id - b.parent_id);
 
-                const buildRoutesTree = (routes, parentId = null) => {
-                    return routes
-                        .filter(route => route.parent_id === parentId)
-                        .map(route => ({
-                            ...route,
-                            SubRoutes: buildRoutesTree(routes, route.id)
-                        }));
-                };
-
                 const nestedRoutes = buildRoutesTree(subRoutings);
 
                 const menuStrucre = mainMenu.map(main => ({
                     ...main,
                     SubMenu: subMenu.filter(sub => isEqualNumber(sub.parent_id, main.id)).map(sub => ({
                         ...sub,
-                        ChildMenu: childMenu.filter(child => isEqualNumber(child.parent_id, sub.id)),
-                    }))
+                        ChildMenu: childMenu.filter(child => isEqualNumber(child.parent_id, sub.id)).map(child => ({
+                            ...child,
+                            SubRoutes: buildRoutesTree(subRoutings, child.id)
+                        })),
+                        SubRoutes: buildRoutesTree(subRoutings, sub.id)
+                    })),
+                    SubRoutes: buildRoutesTree(subRoutings, main.id)
                 }));
 
                 dataFound(res, menuStrucre, 'data Found', { subRoutings, nestedRoutes })
