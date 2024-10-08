@@ -46,7 +46,7 @@ const SaleOrder = () => {
                 const billQty = parseInt(item?.Bill_Qty);
                 const Amount = Multiplication(billQty, itemRate)
                 const gstPercentage = isEqualNumber(IS_IGST, 1) ? product.Igst_P : product.Gst_P;
-                
+
                 if (isEqualNumber(GST_Inclusive, 1)) {
                     return o += Amount;
                 } else {
@@ -60,7 +60,7 @@ const SaleOrder = () => {
                 const itemRate = parseFloat(item?.Item_Rate) || 0;
                 const billQty = parseInt(item?.Bill_Qty) || 0;
                 const gstPercentage = isEqualNumber(IS_IGST, 1) ? product.Igst_P : product.Gst_P;
-                
+
                 if (isEqualNumber(GST_Inclusive, 1)) {
                     const itemTax = taxCalc(1, itemRate, gstPercentage)
                     const basePrice = Subraction(itemRate, itemTax);
@@ -99,21 +99,22 @@ const SaleOrder = () => {
                 .input('createdon', new Date())
                 .input('alteron', new Date())
                 .input('Trans_Type', 'INSERT')
-
-            const result = await request.query(`
-                INSERT INTO tbl_Sales_Order_Gen_Info (
-                    So_Date, Retailer_Id, Sales_Person_Id, Branch_Id, 
-                    GST_Inclusive, IS_IGST, Round_off, Total_Invoice_value, Total_Before_Tax, Total_Tax,
-                    Narration, Cancel_status, Created_by, Altered_by, Alter_Id, Created_on, Alterd_on,
-                    Trans_Type
-                ) VALUES (
-                    @date, @retailer, @salesperson, @branch, 
-                    @GST_Inclusive, @IS_IGST, @roundoff, @totalinvoice, @Total_Before_Tax, @Total_Tax,
-                    @narration, @cancel, @createdby, @alterby, @Alter_Id, @createdon, @alteron,
-                    @Trans_Type
+                .query(`
+                    INSERT INTO tbl_Sales_Order_Gen_Info (
+                        So_Date, Retailer_Id, Sales_Person_Id, Branch_Id, 
+                        GST_Inclusive, IS_IGST, Round_off, Total_Invoice_value, Total_Before_Tax, Total_Tax,
+                        Narration, Cancel_status, Created_by, Altered_by, Alter_Id, Created_on, Alterd_on,
+                        Trans_Type
+                    ) VALUES (
+                        @date, @retailer, @salesperson, @branch, 
+                        @GST_Inclusive, @IS_IGST, @roundoff, @totalinvoice, @Total_Before_Tax, @Total_Tax,
+                        @narration, @cancel, @createdby, @alterby, @Alter_Id, @createdon, @alteron,
+                        @Trans_Type
+                    );
+                    SELECT SCOPE_IDENTITY() AS OrderId;`
                 );
-                SELECT SCOPE_IDENTITY() AS OrderId`
-            );
+
+            const result = await request;
 
             if (result.rowsAffected[0] === 0) {
                 throw new Error('Failed to create order, Try again.');
@@ -152,8 +153,8 @@ const SaleOrder = () => {
                 request2.input('Total_Qty', Bill_Qty);
                 request2.input('Taxble', Taxble);
                 request2.input('HSN_Code', productDetails.HSN_Code);
-                request2.input('Unit_Id', product.UOM);
-                request2.input('Unit_Name', productDetails.Units);
+                request2.input('Unit_Id', product.UOM ? product.UOM : (productDetails.UOM ?? ''));
+                request2.input('Unit_Name', product.Units ? product.Units : (productDetails.Units ?? ''));
                 request2.input('Taxable_Amount', Taxable_Amount);
                 request2.input('Tax_Rate', gstPercentage);
                 request2.input('Cgst', !IS_IGST ? productDetails.Cgst_P : 0);
@@ -194,7 +195,10 @@ const SaleOrder = () => {
     }
 
     const editSaleOrder = async (req, res) => {
-        const { So_Id, So_Date, Retailer_Id, Sales_Person_Id, Branch_Id, Narration, Created_by, Product_Array } = req.body;
+        const {
+            So_Id, So_Date = ISOString(), Retailer_Id, Sales_Person_Id, Branch_Id,
+            Narration = null, Created_by, Product_Array, GST_Inclusive = 1, IS_IGST = 0
+        } = req.body;
 
         if (
             !checkIsNumber(So_Id)
@@ -209,41 +213,93 @@ const SaleOrder = () => {
         const transaction = new sql.Transaction();
 
         try {
-            let Total_Invoice_value = 0;
-            Product_Array.map(o => {
-                Total_Invoice_value += (parseInt(o?.Bill_Qty) * Number(o?.Item_Rate) ?? 0);
-            })
+            const productsData = (await getProducts()).dataArray;
+            const Alter_Id = Math.floor(Math.random() * 999999);
+
+            const Total_Invoice_value = Product_Array.reduce((o, item) => {
+                const product = findProductDetails(productsData, item.Item_Id);
+                const itemRate = parseFloat(item?.Item_Rate);
+                const billQty = parseInt(item?.Bill_Qty);
+                const Amount = Multiplication(billQty, itemRate)
+                const gstPercentage = isEqualNumber(IS_IGST, 1) ? product.Igst_P : product.Gst_P;
+
+                if (isEqualNumber(GST_Inclusive, 1)) {
+                    return o += Amount;
+                } else {
+                    const tax = taxCalc(0, itemRate, gstPercentage)
+                    return o += (Amount + (tax * billQty));
+                }
+            }, 0);
+
+            const totalValueBeforeTax = Product_Array.reduce((acc, item) => {
+                const product = findProductDetails(productsData, item.Item_Id);
+                const itemRate = parseFloat(item?.Item_Rate) || 0;
+                const billQty = parseInt(item?.Bill_Qty) || 0;
+                const gstPercentage = isEqualNumber(IS_IGST, 1) ? product.Igst_P : product.Gst_P;
+
+                if (isEqualNumber(GST_Inclusive, 1)) {
+                    const itemTax = taxCalc(1, itemRate, gstPercentage)
+                    const basePrice = Subraction(itemRate, itemTax);
+                    acc.TotalTax += Multiplication(billQty, itemTax);
+                    acc.TotalValue += Multiplication(billQty, basePrice);
+                } else {
+                    const itemTax = taxCalc(0, itemRate, gstPercentage);
+                    acc.TotalTax += Multiplication(billQty, itemTax);
+                    acc.TotalValue += Multiplication(billQty, itemRate);
+                }
+
+                return acc;
+            }, {
+                TotalValue: 0,
+                TotalTax: 0
+            });
 
             await transaction.begin();
 
-            const updateRequest = new sql.Request(transaction);
-            updateRequest.input('date', So_Date ? So_Date : new Date());
-            updateRequest.input('retailer', Retailer_Id);
-            updateRequest.input('salesPerson', Sales_Person_Id);
-            updateRequest.input('branch', Branch_Id);
-            updateRequest.input('narration', Narration);
-            updateRequest.input('alterby', Created_by);
-            updateRequest.input('alteron', new Date());
-            updateRequest.input('total', Total_Invoice_value);
-            updateRequest.input('soid', So_Id);
-
-            const updateResult = await updateRequest.query(`
-                    UPDATE tbl_Sales_Order_Gen_Info
+            const request = new sql.Request(transaction)
+                .input('soid', So_Id)
+                .input('date', So_Date)
+                .input('retailer', Retailer_Id)
+                .input('salesperson', Sales_Person_Id)
+                .input('branch', Branch_Id)
+                .input('GST_Inclusive', GST_Inclusive)
+                .input('IS_IGST', IS_IGST)
+                .input('roundoff', Total_Invoice_value - (totalValueBeforeTax.TotalValue + totalValueBeforeTax.TotalTax))
+                .input('totalinvoice', Total_Invoice_value)
+                .input('Total_Before_Tax', totalValueBeforeTax.TotalValue)
+                .input('Total_Tax', totalValueBeforeTax.TotalTax)
+                .input('narration', Narration)
+                .input('alterby', Created_by)
+                .input('Alter_Id', Alter_Id)
+                .input('alteron', new Date())
+                .input('Trans_Type', 'UPDATE')
+                .query(`
+                    UPDATE 
+                        tbl_Sales_Order_Gen_Info
                     SET
-                        So_Date = @date,
-                        Retailer_Id = @retailer,
-                        Sales_Person_Id = @salesPerson,
-                        Branch_Id = @branch,
-                        Narration = @narration,
-                        Altered_by = @alterby,
+                        So_Date = @date, 
+                        Retailer_Id = @retailer, 
+                        Sales_Person_Id = @salesperson, 
+                        Branch_Id = @branch, 
+                        GST_Inclusive = @GST_Inclusive, 
+                        IS_IGST = @IS_IGST, 
+                        Round_off = @roundoff, 
+                        Total_Invoice_value = @totalinvoice, 
+                        Total_Before_Tax = @Total_Before_Tax, 
+                        Total_Tax = @Total_Tax,
+                        Narration = @narration,  
+                        Altered_by = @alterby, 
+                        Alter_Id = @Alter_Id, 
                         Alterd_on = @alteron,
-                        Round_off = @total,
-                        Total_Invoice_value = @total
+                        Trans_Type = @Trans_Type
                     WHERE
-                        So_Id = @soid
-                `);
+                        So_Id = @soid;
+                    `
+                );
 
-            if (updateResult.rowsAffected[0] === 0) {
+            const result = await request;
+
+            if (result.rowsAffected[0] === 0) {
                 throw new Error('Failed to update order, Try again')
             }
 
@@ -252,28 +308,62 @@ const SaleOrder = () => {
                 .query(`DELETE FROM tbl_Sales_Order_Stock_Info WHERE Sales_Order_Id = @soid`);
 
             for (let i = 0; i < Product_Array.length; i++) {
-                const product = Product_Array[i];
                 const request2 = new sql.Request(transaction);
+                const product = Product_Array[i];
+                const productDetails = findProductDetails(productsData, product.Item_Id)
 
+                const gstPercentage = isEqualNumber(IS_IGST, 1) ? productDetails.Igst_P : productDetails.Gst_P;
+                const Taxble = gstPercentage > 0 ? 1 : 0;
+                const Bill_Qty = Number(product.Bill_Qty);
+                const Item_Rate = Number(product.Item_Rate);
+                const Amount = Bill_Qty * Item_Rate;
+                const tax = taxCalc(GST_Inclusive, Amount, gstPercentage)
+
+                const Taxable_Amount = isEqualNumber(GST_Inclusive, 1) ? (Amount - tax) : Amount;
+                const Final_Amo = isEqualNumber(GST_Inclusive, 1) ? Amount : (Amount + tax);
+
+                const Cgst_Amo = !IS_IGST ? taxCalc(GST_Inclusive, Amount, productDetails.Cgst_P) : 0;
+                const Sgst_Amo = !IS_IGST ? taxCalc(GST_Inclusive, Amount, productDetails.Sgst_P) : 0;
+                const Igst_Amo = IS_IGST ? taxCalc(GST_Inclusive, Amount, productDetails.Igst_P) : 0;
+
+                request2.input('So_Date', So_Date);
                 request2.input('Sales_Order_Id', So_Id);
                 request2.input('S_No', i + 1);
                 request2.input('Item_Id', product.Item_Id);
-                request2.input('Bill_Qty', Number(product.Bill_Qty));
-                request2.input('Item_Rate', Number(product.Item_Rate));
+                request2.input('Bill_Qty', Bill_Qty);
+                request2.input('Item_Rate', Item_Rate);
+                request2.input('Amount', Amount);
                 request2.input('Free_Qty', 0);
-                request2.input('Total_Qty', product.Bill_Qty);
-                request2.input('Amount', parseInt(product?.Bill_Qty) * Number(product?.Item_Rate));
+                request2.input('Total_Qty', Bill_Qty);
+                request2.input('Taxble', Taxble);
+                request2.input('HSN_Code', productDetails.HSN_Code);
+                request2.input('Unit_Id', product.UOM ? product.UOM : (productDetails.UOM ?? ''));
+                request2.input('Unit_Name', product.Units ? product.Units : (productDetails.Units ?? ''));
+                request2.input('Taxable_Amount', Taxable_Amount);
+                request2.input('Tax_Rate', gstPercentage);
+                request2.input('Cgst', !IS_IGST ? productDetails.Cgst_P : 0);
+                request2.input('Cgst_Amo', Cgst_Amo);
+                request2.input('Sgst', !IS_IGST ? productDetails.Sgst_P : 0);
+                request2.input('Sgst_Amo', Sgst_Amo);
+                request2.input('Igst', IS_IGST ? productDetails.Igst_P : 0);
+                request2.input('Igst_Amo', Igst_Amo);
+                request2.input('Final_Amo', Final_Amo);
                 request2.input('Created_on', new Date());
 
                 const result2 = await request2.query(`
-                        INSERT INTO tbl_Sales_Order_Stock_Info 
-                            (Sales_Order_Id, S_No, Item_Id, Bill_Qty, Item_Rate, Free_Qty, Total_Qty, Amount, Created_on)
-                        VALUES
-                            (@Sales_Order_Id, @S_No, @Item_Id, @Bill_Qty, @Item_Rate, @Free_Qty, @Total_Qty, @Amount, @Created_on);
-                    `);
+                        INSERT INTO tbl_Sales_Order_Stock_Info (
+                            So_Date, Sales_Order_Id, S_No, Item_Id, Bill_Qty, Item_Rate, Amount, Free_Qty, Total_Qty, 
+                            Taxble, HSN_Code, Unit_Id, Unit_Name, Taxable_Amount, Tax_Rate, 
+                            Cgst, Cgst_Amo, Sgst, Sgst_Amo, Igst, Igst_Amo, Final_Amo, Created_on
+                        ) VALUES (
+                            @So_Date, @Sales_Order_Id, @S_No, @Item_Id, @Bill_Qty, @Item_Rate, @Amount, @Free_Qty, @Total_Qty, 
+                            @Taxble, @HSN_Code, @Unit_Id, @Unit_Name, @Taxable_Amount, @Tax_Rate, 
+                            @Cgst, @Cgst_Amo, @Sgst, @Sgst_Amo, @Igst, @Igst_Amo, @Final_Amo, @Created_on
+                        );`
+                );
 
                 if (result2.rowsAffected[0] === 0) {
-                    throw new Error('Failed to update order, Try again')
+                    throw new Error('Failed to create order, Try again.');
                 }
             }
 
@@ -281,7 +371,9 @@ const SaleOrder = () => {
             success(res, 'Changes Saved!')
 
         } catch (e) {
-            transaction.rollback();
+            if (transaction._aborted === false) {
+                await transaction.rollback();
+            }
             servError(e, res)
         }
     }
