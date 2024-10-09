@@ -281,7 +281,7 @@ const ReportTemplate = () => {
             WITH reportName AS (
                 	SELECT 
                     	r.*,
-                    	COALESCE(u.Name, 'Name Not Found') AS CreatedByGet
+                    	COALESCE(u.Name, 'User Not Found') AS CreatedByGet
                     FROM 
                     	tbl_Report_Type AS r
                     	LEFT JOIN tbl_Users AS u
@@ -616,8 +616,16 @@ const ReportTemplate = () => {
 
                 for (let i = 0; i < tables.length; i++) {
                     for (let j = 0; j < tables[i]?.columns?.length; j++) {
-
-                        colToInsert.push(getTableAccronym(tableMaster, tables[i]?.Table_Id) + '.' + tables[i]?.columns[j]?.Column_Name);
+                        
+                        colToInsert.push(
+                            getTableAccronym(tableMaster, tables[i]?.Table_Id) + 
+                            '.' + 
+                            tables[i]?.columns[j]?.Column_Name + 
+                            ' AS ' +
+                            getTableAccronym(tableMaster, tables[i]?.Table_Id) +
+                            '_' +
+                            tables[i]?.columns[j]?.Column_Name
+                        );
 
                         const columnsInsertRequest = new sql.Request(transaction)
                             .input('Report_Type_Id', Report_Type_Id)
