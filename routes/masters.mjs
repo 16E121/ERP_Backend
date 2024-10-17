@@ -94,6 +94,7 @@ MastersRouter.get('/district', salesAppMasters.getDistricts);
 MastersRouter.get('/areas', salesAppMasters.getAreas);
 MastersRouter.get('/outlets', salesAppMasters.getOutlet);
 MastersRouter.get('/distributors', salesAppMasters.getDistributors);
+MastersRouter.get('/uom', salesAppMasters.getUOM);
 
 
 

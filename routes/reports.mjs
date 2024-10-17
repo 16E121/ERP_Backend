@@ -21,6 +21,7 @@ ReportRouter.post('/template/executeQuery', dbconnect, template.executeTemplateS
 ReportRouter.post('/template', template.insertTemplate);
 ReportRouter.put('/template', template.updateTemplate);
 ReportRouter.delete('/template', template.deleteTemplate);
+ReportRouter.post('/template/templateState', template.saveReportState);
 
 ReportRouter.get('/tablesAndColumns', template.getTablesandColumnsForReport);
 

@@ -119,12 +119,27 @@ const sfMasters = () => {
         }
     } 
 
+    const getUOM = async (req, res) => {
+        try {
+            const result = await sql.query('SELECT * FROM tbl_UOM WHERE Unit_Id != 0');
+
+            if (result.recordset.length) {
+                dataFound(res, result.recordset)
+            } else {
+                noData(res)
+            }
+        } catch (e) {
+            servError(e, res)
+        }
+    }
+
     return {
         getStates,
         getDistricts,
         getAreas,
         getOutlet,
         getDistributors,
+        getUOM,
     }
 }
 

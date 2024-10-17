@@ -138,9 +138,8 @@ const SaleOrder = () => {
                 const Taxable_Amount = isEqualNumber(GST_Inclusive, 1) ? (Amount - tax) : Amount;
                 const Final_Amo = isEqualNumber(GST_Inclusive, 1) ? Amount : (Amount + tax);
 
-                const Cgst_Amo = !IS_IGST ? taxCalc(GST_Inclusive, Amount, productDetails.Cgst_P) : 0;
-                const Sgst_Amo = !IS_IGST ? taxCalc(GST_Inclusive, Amount, productDetails.Sgst_P) : 0;
-                const Igst_Amo = IS_IGST ? taxCalc(GST_Inclusive, Amount, productDetails.Igst_P) : 0;
+                const Cgst_Amo = !IS_IGST ? (taxCalc(GST_Inclusive, Amount, gstPercentage) /2) : 0;
+                const Igst_Amo = IS_IGST ? taxCalc(GST_Inclusive, Amount, gstPercentage) : 0;
 
                 request2.input('So_Date', So_Date ? So_Date : new Date());
                 request2.input('Sales_Order_Id', OrderId);
@@ -160,7 +159,7 @@ const SaleOrder = () => {
                 request2.input('Cgst', !IS_IGST ? productDetails.Cgst_P : 0);
                 request2.input('Cgst_Amo', Cgst_Amo);
                 request2.input('Sgst', !IS_IGST ? productDetails.Sgst_P : 0);
-                request2.input('Sgst_Amo', Sgst_Amo);
+                request2.input('Sgst_Amo', Cgst_Amo);
                 request2.input('Igst', IS_IGST ? productDetails.Igst_P : 0);
                 request2.input('Igst_Amo', Igst_Amo);
                 request2.input('Final_Amo', Final_Amo);
@@ -322,9 +321,8 @@ const SaleOrder = () => {
                 const Taxable_Amount = isEqualNumber(GST_Inclusive, 1) ? (Amount - tax) : Amount;
                 const Final_Amo = isEqualNumber(GST_Inclusive, 1) ? Amount : (Amount + tax);
 
-                const Cgst_Amo = !IS_IGST ? taxCalc(GST_Inclusive, Amount, productDetails.Cgst_P) : 0;
-                const Sgst_Amo = !IS_IGST ? taxCalc(GST_Inclusive, Amount, productDetails.Sgst_P) : 0;
-                const Igst_Amo = IS_IGST ? taxCalc(GST_Inclusive, Amount, productDetails.Igst_P) : 0;
+                const Cgst_Amo = !IS_IGST ? (taxCalc(GST_Inclusive, Amount, gstPercentage) / 2) : 0;
+                const Igst_Amo = IS_IGST ? taxCalc(GST_Inclusive, Amount, gstPercentage) : 0;
 
                 request2.input('So_Date', So_Date);
                 request2.input('Sales_Order_Id', So_Id);
@@ -344,7 +342,7 @@ const SaleOrder = () => {
                 request2.input('Cgst', !IS_IGST ? productDetails.Cgst_P : 0);
                 request2.input('Cgst_Amo', Cgst_Amo);
                 request2.input('Sgst', !IS_IGST ? productDetails.Sgst_P : 0);
-                request2.input('Sgst_Amo', Sgst_Amo);
+                request2.input('Sgst_Amo', Cgst_Amo);
                 request2.input('Igst', IS_IGST ? productDetails.Igst_P : 0);
                 request2.input('Igst_Amo', Igst_Amo);
                 request2.input('Final_Amo', Final_Amo);

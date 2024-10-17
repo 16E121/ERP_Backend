@@ -142,13 +142,12 @@ const ReportTemplate = () => {
                 // Creating Report Type
                 const reportTypeInsertRequest = new sql.Request(transaction)
                     .input('reportName', reportName)
-                    .input('ReportState', JSON.stringify({ tables, reportName, tableJoins }))
                     .input('CreatedBy', createdBy)
                     .query(`
                         INSERT INTO tbl_Report_Type
-                            (Report_Name, ReportState, CreatedBy)
+                            (Report_Name, CreatedBy)
                         VALUES
-                            (@reportName, @ReportState, @CreatedBy);
+                            (@reportName, @CreatedBy);
                         
                         SELECT SCOPE_IDENTITY() AS ReportID;`);
 
@@ -737,13 +736,41 @@ const ReportTemplate = () => {
         }
     }
 
+    const saveReportState = async (req, res) => {
+        const { Report_Type_Id, ReportState } = req.body;
+
+        try {
+            const request = new sql.Request()
+                .input('Report_Type_Id', Report_Type_Id)
+                .input('ReportState', JSON.stringify(ReportState))
+                .query(`
+                    UPDATE tbl_Report_Type
+                    SET
+                        ReportState = @ReportState
+                    WHERE
+                        Report_Type_Id = @Report_Type_Id
+                    `);
+            
+            const result = await request;
+
+            if (result.rowsAffected[0] > 0) {
+                success(res, 'Report State Saved')
+            } else {
+                failed(res, 'Failed to save')
+            }
+        } catch (e) {
+            servError(e, res);
+        }
+    }
+
     return {
         getTablesandColumnsForReport,
         insertTemplate,
         getTemplates,
         executeTemplateSQL,
         updateTemplate,
-        deleteTemplate
+        deleteTemplate,
+        saveReportState
     }
 }
 
