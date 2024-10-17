@@ -1,6 +1,6 @@
 import sql from 'mssql'
 import { dataFound, invalidInput, noData, servError, success } from '../../res.mjs';
-import { checkIsNumber, isEqualNumber, ISOString, Addition, Subraction, Multiplication, Division } from '../../helper_functions.mjs'
+import { checkIsNumber, isEqualNumber, ISOString, Subraction, Multiplication } from '../../helper_functions.mjs'
 import getImage from '../../middleware/getImageIfExist.mjs';
 import { getProducts, getRetailerInfo } from '../../middleware/miniAPIs.mjs';
 
@@ -13,7 +13,7 @@ const taxCalc = (method = 1, amount = 0, percentage = 0) => {
     } else if (method == 0 && amount && percentage) {
         return amount * (percentage / 100);
     } else {
-        return amount;
+        return 0;
     }
 }
 

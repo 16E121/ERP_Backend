@@ -3307,3 +3307,17 @@
 [0mGET /api/masters/uom [36m304[0m 470.986 ms - -[0m
 [0mGET /api/masters/retailers/info?Retailer_Id=9 [36m304[0m 471.027 ms - -[0m
 [0mGET /api/masters/products?Company_Id=2 [36m304[0m 626.009 ms - -[0m
+[0mGET /api/authorization/userAuth [32m200[0m 608.243 ms - 415[0m
+[0mGET /api/authorization/newAppMenu?Auth=5711BF9A8D9047408BA6FF286079FADB [36m304[0m 1237.185 ms - -[0m
+[0mGET /api/authorization/newAppMenu?Auth=5711BF9A8D9047408BA6FF286079FADB [36m304[0m 415.779 ms - -[0m
+[0mGET /api/masters/retailers/dropDown?Company_Id=2 [36m304[0m 174.138 ms - -[0m
+[0mGET /api/sales/saleOrder?Fromdate=2024-10-10&Todate=2024-10-17&Retailer_Id=&Sales_Person_Id=&Created_by=&Cancel_status=0 [36m304[0m 266.314 ms - -[0m
+[0mGET /api/masters/user/dropDown?Company_id=2 [36m304[0m 290.864 ms - -[0m
+[0mGET /api/masters/users/salesPerson/dropDown?Company_id=2 [36m304[0m 339.546 ms - -[0m
+[0mGET /api/masters/uom [36m304[0m 529.001 ms - -[0m
+[0mGET /api/masters/company?Company_id=2 [36m304[0m 548.695 ms - -[0m
+[0mGET /api/masters/retailers/info?Retailer_Id=9 [36m304[0m 591.964 ms - -[0m
+[0mGET /api/masters/products?Company_Id=2 [36m304[0m 762.987 ms - -[0m
+[0mGET /api/masters/company?Company_id=2 [36m304[0m 754.260 ms - -[0m
+[0mGET /api/masters/retailers/info?Retailer_Id=9 [36m304[0m 734.248 ms - -[0m
+[0mGET /api/masters/products?Company_Id=2 [36m304[0m 923.865 ms - -[0m
