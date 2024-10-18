@@ -465,7 +465,7 @@ const SaleOrder = () => {
             }
 
             query += `
-            ORDER BY CONVERT(DATETIME, so.So_Date) DESC`;
+            ORDER BY CONVERT(DATETIME, so.So_Id) DESC`;
 
             const request = new sql.Request();
             request.input('from', Fromdate);
