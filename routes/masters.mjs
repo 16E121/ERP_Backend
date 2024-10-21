@@ -76,13 +76,13 @@ MastersRouter.put('/retailers/closingStock', retailerClosingStock.closeingStockU
 
 
 MastersRouter.get('/products', products.getProducts);
+MastersRouter.post('/products', products.postProductsWithoutImage);
+MastersRouter.put('/products', products.updateProduct);
+MastersRouter.post('/products/withImage', products.postProductsWithImage);
+MastersRouter.put('/products/productImage', products.updateProductImages);
 MastersRouter.get('/products/grouped', products.getGroupedProducts);
 MastersRouter.get('/products/productGroups', products.getProductGroups);
 MastersRouter.get('/products/packs', products.getProductPacks);
-MastersRouter.post('/products', products.postProductsWithImage);
-MastersRouter.post('/products/withoutImage', products.postProductsWithImage);
-MastersRouter.put('/products', products.updateProduct);
-MastersRouter.put('/products/productImage', products.updateProductImages);
 
 
 MastersRouter.get('/routes', retailerRoutes.getRoutes);
@@ -95,7 +95,7 @@ MastersRouter.get('/areas', salesAppMasters.getAreas);
 MastersRouter.get('/outlets', salesAppMasters.getOutlet);
 MastersRouter.get('/distributors', salesAppMasters.getDistributors);
 MastersRouter.get('/uom', salesAppMasters.getUOM);
-
+MastersRouter.get('/brand', salesAppMasters.getBrand);
 
 
 export default MastersRouter;

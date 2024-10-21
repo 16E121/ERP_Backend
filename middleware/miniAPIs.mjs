@@ -1,7 +1,7 @@
 import sql from 'mssql';
 import { checkIsNumber, isEqualNumber } from '../helper_functions.mjs';
 
-const miniResponse = ({status = true, dataArray = [], dataObject = {}}) => ({status, dataArray, dataObject})
+const miniResponse = ({ status = true, dataArray = [], dataObject = {}, others = {} }) => ({ status, dataArray, dataObject, ...others })
 
 export const getUserType = async (UserId) => {
     if (!checkIsNumber(UserId)) {
@@ -240,7 +240,7 @@ export const getUserMenuRights = async (Auth) => {
 }
 
 export const getRetailerInfo = async (retailerId) => {
-    
+
     try {
         if (!checkIsNumber(retailerId)) {
             throw new Error('Retailer id not received');
@@ -369,5 +369,45 @@ export const getProducts = async () => {
         return miniResponse({
             status: false,
         });
+    }
+}
+
+export const getNextId = async ({ table = '', column = '' }) => {
+    try {
+
+        if (!table || !column) {
+            return miniResponse({
+                status: false,
+                others: {
+                    error: 'Invalid Input'
+                }
+            })
+        }
+
+        const col = String(column), tab = String(table);
+        const request = new sql.Request()
+            .query(`SELECT COALESCE(MAX(${col}), 0) AS MaxId FROM ${tab}`);
+
+        const result = await request;
+
+        if (result.recordset.length) {
+            return miniResponse({
+                status: true,
+                others: {
+                    MaxId: Number(result.recordset[0].MaxId) + 1
+                }
+            })
+        }
+
+        throw new Error('failed to get max id');
+
+    } catch (e) {
+        console.log(e);
+        return miniResponse({
+            status: false,
+            others: {
+                error: e
+            }
+        })
     }
 }

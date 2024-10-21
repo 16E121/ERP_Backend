@@ -133,6 +133,22 @@ const sfMasters = () => {
         }
     }
 
+    const getBrand = async (req, res) => {
+        try {
+            const result = await sql.query('SELECT * FROM tbl_Brand_Master WHERE Brand_Id != 0');
+
+            if (result.recordset.length) {
+                dataFound(res, result.recordset)
+            } else {
+                noData(res)
+            }
+        } catch (e) {
+            servError(e, res)
+        }
+    }
+
+
+
     return {
         getStates,
         getDistricts,
@@ -140,6 +156,7 @@ const sfMasters = () => {
         getOutlet,
         getDistributors,
         getUOM,
+        getBrand,
     }
 }
 
