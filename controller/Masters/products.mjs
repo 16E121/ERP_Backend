@@ -273,9 +273,6 @@ const sfProductController = () => {
         } = req?.body;
 
         try {
-            // const getMaxId = await sql.query(`SELECT COALESCE(MAX(Product_Id), 0) AS MaxId FROM tbl_Product_Master`);
-
-            // const MaxId = getMaxId.recordset[0]?.MaxId || 1;
 
             const getId = await getNextId({
                 table: 'tbl_Product_Master',
