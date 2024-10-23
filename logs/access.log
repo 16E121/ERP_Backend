@@ -4550,3 +4550,14 @@
 [0mGET /static/css/main.fed19631.css [32m200[0m 20.865 ms - 29350[0m
 [0mGET /static/js/main.38bd3255.js [32m200[0m 37.265 ms - 479454[0m
 [0mGET /api [32m200[0m 112.893 ms - 79085[0m
+[0mGET /api [32m200[0m 47.847 ms - 79091[0m
+[0mGET /favicon.ico [36m304[0m 8.762 ms - -[0m
+[0mGET / [36m304[0m 2.685 ms - -[0m
+[0mGET /static/js/main.38bd3255.js [36m304[0m 1.426 ms - -[0m
+[0mGET /static/css/main.fed19631.css [36m304[0m 1.414 ms - -[0m
+[0mGET /manifest.json [36m304[0m 1.829 ms - -[0m
+[0mGET /logo192.png [36m304[0m 1.767 ms - -[0m
+[0mGET /static/css/main.fed19631.css [36m304[0m 1.518 ms - -[0m
+[0mGET /manifest.json [36m304[0m 1.506 ms - -[0m
+[0mGET /static/js/main.38bd3255.js.map [32m200[0m 33.568 ms - 2183766[0m
+[0mGET /static/css/main.fed19631.css.map [32m200[0m 604.204 ms - 70072[0m
