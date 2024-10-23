@@ -12,7 +12,7 @@ AuthorizationRouter.post('/userPortal/login', LoginController.globalLogin);
 AuthorizationRouter.get('/userPortal/accounts', LoginController.getAccountsInUserPortal);
 
 
-AuthorizationRouter.get('/appMenu', appMenu.getMenu);
+AuthorizationRouter.get('/appMenu', authenticateToken, appMenu.newAppMenu);
 AuthorizationRouter.get('/newAppMenu', authenticateToken, appMenu.newAppMenu)
 
 AuthorizationRouter.get('/userRights', appMenu.getNewUserBasedRights);
@@ -21,8 +21,8 @@ AuthorizationRouter.post('/userRights', appMenu.newModifyUserRights);
 AuthorizationRouter.get('/userTypeRights', appMenu.getNewUserTypeBasedRights);
 AuthorizationRouter.post('/userTypeRights', appMenu.newModifyUserTypeRights);
 
-AuthorizationRouter.get('/menuMaster', appMenu.menuMaster);
-AuthorizationRouter.post('/menuMaster', appMenu.createMenu);
+AuthorizationRouter.get('/menuMaster', appMenu.listMenu);
+AuthorizationRouter.post('/menuMaster', appMenu.createNewMenu);
 AuthorizationRouter.put('/menuMaster', appMenu.updateMenu);
 
 // AuthorizationRouter.get('/companysAccess', companyAccess.getMYCompanyAccess);
