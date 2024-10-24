@@ -1,5 +1,6 @@
 import sql from 'mssql';
 import { dataFound, noData, invalidInput, servError } from '../../res.mjs';
+import { ISOString } from '../../helper_functions.mjs';
 
 const StockAndPurchaseReport = () => {
 
@@ -32,6 +33,28 @@ const StockAndPurchaseReport = () => {
             servError(e, res)
         } finally {
             req.db.close()
+        }
+    }
+
+    const liveStockReport = async (req, res) => {
+
+        try {
+
+            const { Fromdate = ISOString(), Todate = ISOString() } = req.query;
+
+            const result = await new sql.Request()
+                .input('Fromdate', Fromdate)
+                .input('Todate', Todate)
+                .execute('Online_Live_Stock_Reort_VW')
+
+            if (result.recordset.length > 0) {
+                return dataFound(res, result.recordset)
+            } else {
+                return noData(res)
+            }
+
+        } catch (e) {
+            servError(e, res)
         }
     }
 
@@ -173,14 +196,14 @@ const StockAndPurchaseReport = () => {
             if (!Fromdate, !Todate) {
                 return invalidInput(res, 'Fromdate, Todate is required')
             }
-    
+
             const request = new sql.Request()
                 .input('Company_Id', 6)
                 .input('Vouche_Id', 0)
                 .input('Fromdate', Fromdate)
                 .input('Todate', Todate)
                 .execute('Online_Sales_Order_API')
-    
+
             const result = await request;
             if (result.recordset.length > 0) {
                 const sales = JSON.parse(result.recordset[0]?.SALES)
@@ -195,6 +218,7 @@ const StockAndPurchaseReport = () => {
 
     return {
         stockReport,
+        liveStockReport,
         purchaseReport,
         externalAPI,
         salesReport,

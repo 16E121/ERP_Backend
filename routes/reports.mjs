@@ -8,6 +8,7 @@ const ReportRouter = express.Router();
 
 // stock Report
 ReportRouter.get('/stockReport', dbconnect, stockAndPurchase.stockReport);
+ReportRouter.get('/liveStockReport', stockAndPurchase.liveStockReport);
 ReportRouter.get('/PurchaseOrderReportCard', dbconnect, stockAndPurchase.purchaseReport);
 ReportRouter.get('/salesReport/ledger', dbconnect, stockAndPurchase.salesReport);
 ReportRouter.get('/salesReport/products', dbconnect, stockAndPurchase.porductBasedSalesResult);
