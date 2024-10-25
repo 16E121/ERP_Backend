@@ -244,8 +244,8 @@ const taskModule = () => {
                     DELETE FROM tbl_Task_Details WHERE Task_Id = @Task_Id;
                     DELETE FROM tbl_Task_Paramet_DT WHERE Task_Id = @Task_Id;
                     `)
-                ).rowsAffected[0]
-                // DELETE FROM tbl_Work_Master WHERE Task_Id = @Task_Id;
+            ).rowsAffected[0]
+            // DELETE FROM tbl_Work_Master WHERE Task_Id = @Task_Id;
 
             if (request > 0) {
                 return success(res, 'One Task Deleted');
@@ -258,12 +258,126 @@ const taskModule = () => {
         }
     }
 
+    const getTasksbyid = async (req, res) => {
+        const { Project_Id } = req.query;
+
+
+        if (!checkIsNumber(Project_Id)) {
+            return invalidInput(res, 'Project_Id is required and must be a number');
+        }
+
+        try {
+            const result = await new sql.Request()
+                .input('proj', Project_Id)
+                .query(`
+                    SELECT 
+                        t.*,
+                        COALESCE((
+                            SELECT 
+                                Task_Type
+                            FROM
+                                tbl_Task_Type
+                            WHERE
+                                Task_Type_Id = t.Task_Group_Id
+                        ), 'Unknown') AS Task_Group,
+                        COALESCE((
+                            SELECT 
+                                param.PA_Id,
+                                param.Task_Id,
+                                param.Param_Id AS Paramet_Id,
+                                param.Default_Value,
+                                pm.Paramet_Name,
+                                pm.Paramet_Data_Type
+                            FROM
+                                tbl_Task_Paramet_DT AS param
+                            LEFT JOIN tbl_Paramet_Master AS pm
+                            ON pm.Paramet_Id = param.Param_Id
+                            WHERE
+                                Task_Id = t.Task_Id
+                            FOR JSON PATH
+                        ), '[]') AS Task_Parameters
+                    FROM 
+                        tbl_Task AS t
+                    WHERE
+                        t.Project_Id = @proj 
+                    ORDER BY 
+                        CONVERT(DATE, t.Entry_Date) DESC
+                `);
+
+            if (result.recordset.length > 0) {
+                const parsed = result.recordset.map(o => ({
+                    ...o,
+                    Task_Parameters: JSON.parse(o?.Task_Parameters)
+                }));
+                return dataFound(res, parsed);
+            } else {
+                return noData(res);
+            }
+        } catch (err) {
+            return servError(err, res);
+        }
+    };
+
+    const getTaskIndividualId = async (req, res) => {
+        const { Task_Id } = req.query;
+
+        if (!Task_Id) {
+            return invalidInput(res, 'Task_Id is required');
+        }
+
+        try {
+            const request = await new sql.Request()
+                .input('Task_Id', sql.Int, Task_Id)
+                .query(`
+                    SELECT 
+    t.*, 
+    COALESCE(tt.Task_Type, 'Unknown') AS Task_Group,
+    COALESCE((
+        SELECT 
+            param.PA_Id,
+            param.Task_Id,
+            param.Param_Id AS Paramet_Id,
+            param.Default_Value,
+            pm.Paramet_Name,
+            pm.Paramet_Data_Type
+        FROM
+            tbl_Task_Paramet_DT AS param
+        JOIN 
+            tbl_Paramet_Master AS pm ON pm.Paramet_Id = param.Param_Id
+        WHERE
+            param.Task_Id = t.Task_Id
+        FOR JSON PATH
+    ), '[]') AS Task_Parameters
+FROM 
+    tbl_Task AS t
+LEFT JOIN 
+    tbl_Task_Type AS tt ON tt.Task_Type_Id = t.Task_Group_Id
+WHERE 
+    t.Task_Id = @Task_Id
+
+                `);
+
+            const task = request.recordset[0];
+
+            if (task) {
+                task.Task_Parameters = JSON.parse(task.Task_Parameters);
+                return success(res, 'Task retrieved successfully', task);
+            } else {
+                return failed(res, 'Task not found');
+            }
+        } catch (e) {
+            return servError(e, res);
+        }
+    };
+
     return {
         getTaskDropDown,
         getTasks,
         editTask,
         createTask,
-        deleteTask
+        deleteTask,
+        getTasksbyid,
+        getTaskIndividualId,
     }
 }
 

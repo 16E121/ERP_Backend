@@ -18,6 +18,9 @@ projectRoute.post('/project', projectMaster.postProject);
 projectRoute.put('/project', projectMaster.editProject);
 projectRoute.delete('/project', projectMaster.deleteProject);
 projectRoute.get('/statusList', projectMaster.getStatusList);
+projectRoute.get('/project/newAbstract', projectMaster.getProjectAbstractProjectId);
+projectRoute.get('/project/newProjectAbstract', projectMaster.newProjectAbstract);
+
 
 projectRoute.get('/project/schedule/scheduleType', projectSchedule.getScheduleType);
 projectRoute.get('/project/schedule', projectSchedule.getSchedule);
@@ -30,6 +33,9 @@ projectRoute.put('/project/schedule/scheduleTask', projectSchedule.modifyTaskInS
 projectRoute.delete('/project/schedule/scheduleTask', projectSchedule.deleteTaskInSchedule);
 
 
+projectRoute.post('/project/schedule/createNewTaskwithSchedule', projectSchedule.createNewTaskwithSchedule);
+projectRoute.get('/project/schedule/ListingDetails', projectSchedule.getScheduleProjectid);
+
 
 
 projectRoute.get('/parameters', parameters.getTaskParameters);
@@ -38,7 +44,8 @@ projectRoute.put('/parameters', parameters.editTaskPrarameter);
 projectRoute.delete('/parameters', parameters.delTaskParameter);
 
 
-
+projectRoute.get('/tasks/tasklists', tasksMaster.getTasksbyid);
+projectRoute.get('/tasks/tasklistsid', tasksMaster.getTaskIndividualId);
 
 projectRoute.get('/tasks', tasksMaster.getTasks);
 projectRoute.get('/tasks/dropdown', tasksMaster.getTaskDropDown);

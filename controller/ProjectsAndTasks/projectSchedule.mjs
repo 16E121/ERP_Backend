@@ -252,7 +252,7 @@ const ProjectScheduler = () => {
     const putSchedule = async (req, res) => {
         const { Sch_Id, Sch_Date, Project_Id, Sch_By, Sch_Type_Id, Sch_Est_Start_Date, Sch_Status, Entry_By, Sch_Est_End_Date } = req.body;
 
-        if (!checkIsNumber(Sch_Id) || !Sch_Date || !checkIsNumber(Project_Id) || !checkIsNumber(Sch_By) || 
+        if (!checkIsNumber(Sch_Id) || !Sch_Date || !checkIsNumber(Project_Id) || !checkIsNumber(Sch_By) ||
             !checkIsNumber(Sch_Type_Id) || !Sch_Est_Start_Date || !checkIsNumber(Sch_Status) || !checkIsNumber(Entry_By)) {
             return invalidInput(res, 'Sch_Id, Sch_Date, Project_Id, Sch_By, Sch_Type_Id, Sch_Est_Start_Date, Sch_Status, Entry_By is required');
         }
@@ -324,7 +324,7 @@ const ProjectScheduler = () => {
             Task_Sch_Status, Levl_Id, Task_Depend_Level_Id, Type_Task_Id
         } = req.body;
 
-        if (!checkIsNumber(Sch_Project_Id) || !checkIsNumber(Sch_Id) || !checkIsNumber(Task_Id) || !Task_Start_Time || !Task_End_Time || 
+        if (!checkIsNumber(Sch_Project_Id) || !checkIsNumber(Sch_Id) || !checkIsNumber(Task_Id) || !Task_Start_Time || !Task_End_Time ||
             !Task_Sch_Duaration || !Task_Est_Start_Date || !Task_Est_End_Date || !checkIsNumber(Task_Sch_Status) || !checkIsNumber(Type_Task_Id)) {
             return invalidInput(res, 'Sch_Project_Id, Sch_Id, Task_Id, Task_Start_Time, Task_End_Time, Task_Est_Start_Date, Task_Est_End_Date, Task_Sch_Status, Type_Task_Id is required')
         }
@@ -365,7 +365,7 @@ const ProjectScheduler = () => {
             Task_Sch_Status, Levl_Id, Task_Depend_Level_Id, Type_Task_Id
         } = req.body;
 
-        if (!checkIsNumber(Sch_Project_Id) || !checkIsNumber(Sch_Id) || !checkIsNumber(Task_Levl_Id) || !checkIsNumber(Task_Id) || !Task_Start_Time || 
+        if (!checkIsNumber(Sch_Project_Id) || !checkIsNumber(Sch_Id) || !checkIsNumber(Task_Levl_Id) || !checkIsNumber(Task_Id) || !Task_Start_Time ||
             !Task_End_Time || !Task_Sch_Duaration || !Task_Est_Start_Date || !Task_Est_End_Date || !checkIsNumber(Task_Sch_Status) || !checkIsNumber(Type_Task_Id)) {
             return invalidInput(res, `Sch_Project_Id, Sch_Id, Task_Levl_Id, Task_Id, Task_Start_Time, Task_End_Time,
                  Task_Est_Start_Date, Task_Est_End_Date, Task_Sch_Status, Type_Task_Id is required`)
@@ -438,6 +438,183 @@ const ProjectScheduler = () => {
         }
     }
 
+    const createNewTaskwithSchedule = async (req, res) => {
+        const {
+            Project_Id,
+            entryBy,
+            tasks = [],
+            Sch_Type_Id = 1,
+            Sch_Est_Start_Date = new Date(),
+            Sch_Est_End_Date = new Date()
+        } = req.body;
+
+        const Sch_Date = new Date();
+        const Sch_By = entryBy;
+        const Sch_Status = 1;
+        const Mode = 1;
+        const Entry_Date = new Date();
+
+        try {
+            const existingScheduleRequest = new sql.Request();
+            const existingScheduleResult = await existingScheduleRequest
+                .input('Project_Id', sql.Int, Project_Id)
+                .query('SELECT Sch_Id FROM dbo.tbl_Project_Schedule WHERE Project_Id = @Project_Id');
+
+            let newScheduleId = existingScheduleResult.recordset.length > 0
+                ? existingScheduleResult.recordset[0].Sch_Id
+                : null;
+
+            if (!newScheduleId) {
+                const scheduleRequest = new sql.Request();
+                await scheduleRequest
+                    .input('Mode', sql.Int, Mode)
+                    .input('Sch_Id', sql.Int, null)
+                    .input('Sch_Date', sql.DateTime, Sch_Date)
+                    .input('Project_Id', sql.Int, Project_Id)
+                    .input('Sch_By', sql.BigInt, Sch_By)
+                    .input('Sch_Type_Id', sql.Int, Sch_Type_Id)
+                    .input('Sch_Est_Start_Date', sql.DateTime, Sch_Est_Start_Date)
+                    .input('Sch_Est_End_Date', sql.DateTime, Sch_Est_End_Date)
+                    .input('Sch_Status', sql.Int, Sch_Status)
+                    .input('Entry_By', sql.BigInt, entryBy)
+                    .input('Entry_Date', sql.DateTime, Entry_Date)
+                    .execute('Project_Schedule_SP');
+
+                const selectRequest = new sql.Request();
+                const selectResult = await selectRequest.query('SELECT TOP 1 Sch_Id FROM dbo.tbl_Project_Schedule ORDER BY Sch_Id DESC');
+                newScheduleId = selectResult.recordset[0]?.Sch_Id;
+            }
+
+            const taskInsertPromises = tasks.map(async (task) => {
+                const existingTaskRequest = new sql.Request();
+                const existingTaskResult = await existingTaskRequest
+                    .input('Sch_Project_Id', sql.Int, Project_Id)
+                    .input('Task_Id', sql.Int, task.Task_Id)
+                    .query(`SELECT * FROM tbl_Project_Sch_Task_DT WHERE Sch_Project_Id = @Sch_Project_Id AND Task_Id = @Task_Id`);
+
+                if (existingTaskResult.recordset.length > 0) {
+                    return `Task with ID ${task.Task_Id} already exists for this project.`;
+                }
+
+                const taskRequest = new sql.Request();
+                await taskRequest
+                    .input('Mode', sql.Int, 1)
+                    .input('Sch_Project_Id', sql.Int, Project_Id)
+                    .input('Sch_Id', sql.Int, newScheduleId)
+                    .input('Task_Levl_Id', sql.Int, 0)
+                    .input('Task_Id', sql.Int, task.Task_Id)
+                    .input('Type_Task_Id', sql.Int, task.Task_Group_Id)
+                    .input('Task_Sch_Duaration', sql.VarChar, task.Task_Sch_Duaration)
+                    .input('Task_Start_Time', sql.Time, task.Task_Start_Time)
+                    .input('Task_End_Time', sql.Time, task.Task_End_Time)
+                    .input('Task_Est_Start_Date', sql.DateTime, task.Task_Est_Start_Date)
+                    .input('Task_Est_End_Date', sql.DateTime, task.Task_Est_End_Date)
+                    .input('Task_Sch_Status', sql.Int, 1)
+                    .input('Levl_Id', sql.Int, 1)
+                    .input('Task_Depend_Level_Id', sql.Int, 1)
+                    .execute('[Project_Sch_Task_DT_SP]');
+
+                return `Task with ID ${task.Task_Id} inserted successfully.`;
+            });
+
+            const results = await Promise.all(taskInsertPromises);
+            const existingMessages = results.filter(res => typeof res === 'string');
+
+            return res.status(200).send({
+                success: true,
+                message: existingMessages.length > 0
+                    ? existingMessages.join(', ')
+                    : 'Schedule created and tasks inserted successfully',
+                scheduleId: newScheduleId
+            });
+
+        } catch (error) {
+            return res.status(500).send({
+                success: false,
+                message: 'Failed to create schedule: ' + error.message
+            });
+        }
+    };
+
+    const getScheduleProjectid = async (req, res) => {
+        const { Project_Id } = req.query;
+
+        if (!checkIsNumber(Project_Id)) {
+            return invalidInput(res, 'Project_Id is required');
+        }
+
+        const getProjectScheduleQuery = `
+ SELECT 
+    ps.[Sch_Id],
+    ps.[Sch_No],
+    ps.[Sch_Date],
+    ps.[Project_Id],
+    ps.[Sch_By],
+    ps.[Sch_Type_Id],
+    ps.[Sch_Est_Start_Date],
+    ps.[Sch_Est_End_Date],
+    pt.[A_Id],
+    pt.[Sch_Project_Id],
+    pt.[Task_Levl_Id],
+    pt.[Task_Id],
+    pt.[Type_Task_Id],
+    pt.[Task_Sch_Duaration],
+    pt.[Task_Start_Time],
+    pt.[Task_End_Time],
+    pt.[Task_Est_Start_Date],
+    pt.[Task_Est_End_Date],
+    pt.[Task_Sch_Status],
+    pt.[Levl_Id],
+    pt.[Task_Sch_Del_Flag],
+    ps.[Sch_Status],
+    ps.[Entry_By],
+    ps.[Entry_Date],
+    ps.[Update_By],
+    ps.[Update_Date],
+    ps.[Sch_Del_Flag],
+    t.[Task_Name],
+    t.[Task_Desc],
+    tt.[Task_Type],
+    p.[Project_Name],
+    p.[Project_Desc],
+    s.[Status]  -- Assuming this is the column for status description
+FROM 
+    tbl_Project_Schedule ps
+ JOIN 
+    tbl_Project_Sch_Task_DT pt ON ps.[Sch_Id] = pt.[Sch_Id]
+ JOIN 
+    tbl_Task t ON pt.[Task_Id] = t.[Task_Id] 
+ JOIN 
+    tbl_Project_Master p ON ps.[Project_Id] = p.[Project_Id]
+JOIN 
+    tbl_Status s ON ps.[Sch_Status] = s.[Status_Id]  
+ JOIN 
+ tbl_Task_Type tt ON pt.[Type_Task_Id] = tt.[Task_Type_Id]
+WHERE 
+    ps.[Project_Id] = @proid     
+ORDER BY 
+    ps.[Sch_Id];
+
+
+    `;
+
+        try {
+            const request = new sql.Request();
+            request.input('proid', sql.BigInt, Project_Id);
+
+            const result = await request.query(getProjectScheduleQuery);
+
+            if (result.recordset.length > 0) {
+                dataFound(res, result.recordset);
+            } else {
+                noData(res);
+            }
+        } catch (error) {
+            servError(error, res);
+        }
+    };
+
+
     return {
         getSchedule,
         getScheduleType,
@@ -447,6 +624,8 @@ const ProjectScheduler = () => {
         assignTaskInSchedule,
         modifyTaskInSchedule,
         deleteTaskInSchedule,
+        createNewTaskwithSchedule,
+        getScheduleProjectid
     }
 }
 

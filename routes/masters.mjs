@@ -10,6 +10,7 @@ import products from '../controller/Masters/products.mjs';
 import salesAppMasters from '../controller/Masters/salesAppMasters.mjs';
 import retailerRoutes from '../controller/Masters/retailerRoutes.mjs';
 import retailerClosingStock from '../controller/Masters/retailerClosingStock.mjs';
+import employeesTasks from '../controller/EmployeesInvolved/EmployeesTask.mjs'
 
 const MastersRouter = express.Router();
 
@@ -96,6 +97,13 @@ MastersRouter.get('/outlets', salesAppMasters.getOutlet);
 MastersRouter.get('/distributors', salesAppMasters.getDistributors);
 MastersRouter.get('/uom', salesAppMasters.getUOM);
 MastersRouter.get('/brand', salesAppMasters.getBrand);
+
+
+MastersRouter.get('/Employeedetails',employeesTasks.getEmployeeTasks)
+MastersRouter.get('/Employeedetails/dropDown',employeesTasks.getusersDropDown)
+MastersRouter.post('/Employeedetails/employeeAdd',employeesTasks.postEmployeesProjects)
+MastersRouter.get('/Employeedetails/getusersproject',employeesTasks.getUsersProjectId)
+MastersRouter.post('/employeedetails/assignTask',employeesTasks.assignTaskForEmployee)
 
 
 export default MastersRouter;
