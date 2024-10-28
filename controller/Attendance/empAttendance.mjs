@@ -1,6 +1,6 @@
 import sql from 'mssql'
 import { servError, dataFound, noData, invalidInput, success, failed } from '../../res.mjs';
-import { checkIsNumber } from '../../helper_functions.mjs';
+import { checkIsNumber } from '../../helper_functions.mjs';;
 
 const AttendanceController = () => {
 
