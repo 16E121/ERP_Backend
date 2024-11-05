@@ -39,8 +39,8 @@ const StockAndPurchaseReport = () => {
     const liveStockReport = async (req, res) => {
 
         try {
-
-            const { Fromdate = ISOString(), Todate = ISOString() } = req.query;
+            const Fromdate = req.query.Fromdate ? ISOString(req.query.Fromdate) : ISOString();
+            const Todate = req.query.Todate ? ISOString(req.query.Todate) : ISOString();
 
             const result = await new sql.Request()
                 .input('Fromdate', Fromdate)
@@ -95,7 +95,9 @@ const StockAndPurchaseReport = () => {
     }
 
     const salesReport = async (req, res) => {
-        const { Fromdate, Todate } = req.query;
+        const Fromdate = ISOString(req.query.Fromdate);
+        const Todate = ISOString(req.query.Todate);
+
         try {
 
             const DynamicDB = new sql.Request(req.db)
@@ -116,7 +118,8 @@ const StockAndPurchaseReport = () => {
     }
 
     const porductBasedSalesResult = async (req, res) => {
-        const { Fromdate, Todate } = req.query;
+        const Fromdate = req.query.Fromdate ? ISOString(req.query.Fromdate) : ISOString();
+        const Todate = req.query.Todate ? ISOString(req.query.Todate) : ISOString();
 
         try {
 
@@ -138,11 +141,8 @@ const StockAndPurchaseReport = () => {
 
     const externalAPI = async (req, res) => {
         try {
-            const { Fromdate, Todate } = req.query;
-
-            if (!Fromdate, !Todate) {
-                return invalidInput(res, 'Fromdate, Todate is required')
-            }
+            const Fromdate = req.query.Fromdate ? ISOString(req.query.Fromdate) : ISOString();
+            const Todate = req.query.Todate ? ISOString(req.query.Todate) : ISOString();
 
             const DynamicDB = new sql.Request();
             DynamicDB.input('Company_Id', 5);
@@ -164,11 +164,8 @@ const StockAndPurchaseReport = () => {
 
     const externalAPIPurchase = async (req, res) => {
         try {
-            const { Fromdate, Todate } = req.query;
-
-            if (!Fromdate, !Todate) {
-                return invalidInput(res, 'Fromdate, Todate is required')
-            }
+            const Fromdate = req.query.Fromdate ? ISOString(req.query.Fromdate) : ISOString();
+            const Todate = req.query.Todate ? ISOString(req.query.Todate) : ISOString();
 
             const request = new sql.Request()
                 .input('Company_Id', 5)
@@ -191,11 +188,8 @@ const StockAndPurchaseReport = () => {
 
     const externalAPISaleOrder = async (req, res) => {
         try {
-            const { Fromdate, Todate } = req.query;
-
-            if (!Fromdate, !Todate) {
-                return invalidInput(res, 'Fromdate, Todate is required')
-            }
+            const Fromdate = req.query.Fromdate ? ISOString(req.query.Fromdate) : ISOString();
+            const Todate = req.query.Todate ? ISOString(req.query.Todate) : ISOString();
 
             const request = new sql.Request()
                 .input('Company_Id', 6)

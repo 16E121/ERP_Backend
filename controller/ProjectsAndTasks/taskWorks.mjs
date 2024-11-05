@@ -1,12 +1,15 @@
 import sql from 'mssql';
-import { checkIsNumber, isValidDate } from '../../helper_functions.mjs';
+import { checkIsNumber, ISOString, isValidDate } from '../../helper_functions.mjs';
 import { dataFound, noData, success, failed, servError, invalidInput } from '../../res.mjs';
 
 const TaskWorks = () => {
 
     const getAllWorkedData = async (req, res) => {
-        const { Emp_Id, Project_Id, Task_Id, from, to } = req.query;
         try {
+            const { Emp_Id = '', Project_Id = '', Task_Id = '' } = req.query;
+            const from = req.query.from ? ISOString(req.query.from) : ISOString();
+            const to = req.query.to ? ISOString(req.query.to) : ISOString();
+
             let query = `
                 SELECT
                     wm.*,
@@ -58,14 +61,11 @@ const TaskWorks = () => {
                 query += ` 
                 AND wm.Task_Id = @Task_Id`;
             }
-            if (from && to) {
-                query += ` 
-                AND CONVERT(DATE, Work_Dt) >= CONVERT(DATE, @from)`;
-                query += ` 
-                AND CONVERT(DATE, Work_Dt) <= CONVERT(DATE, @to)`;
-            }
 
-            query += ` ORDER BY wm.Start_Time`;
+            query += ` 
+            AND CONVERT(DATE, Work_Dt) >= CONVERT(DATE, @from)`;
+            query += ` 
+            AND CONVERT(DATE, Work_Dt) <= CONVERT(DATE, @to) ORDER BY wm.Start_Time`;
 
             const result = await new sql.Request()
                 .input('Emp_Id', sql.BigInt, Emp_Id)
@@ -90,17 +90,22 @@ const TaskWorks = () => {
     };
 
     const postWorkedTask = async (req, res) => {
-        const { Mode, Work_Id, Project_Id, Sch_Id, Task_Levl_Id, Task_Id, AN_No, Emp_Id, Work_Dt, Work_Done, Start_Time, End_Time, Work_Status, Det_string } = req.body;
-
-        if (!Project_Id || !Sch_Id || !Task_Levl_Id || !Task_Id || !Emp_Id || !Work_Done || !Start_Time || !End_Time || !Work_Status) {
-            return invalidInput(res, 'Project_Id, Sch_Id, Task_Levl_Id, Task_Id, Emp_Id, Work_Done, Start_Time, End_Time, Work_Status is required')
-        }
-
-        if (Number(Mode) === 2 && Number(Work_Id) === 0) {
-            return invalidInput(res, 'Work_Id is required')
-        }
 
         try {
+
+            const {
+                Mode, Work_Id, Project_Id, Sch_Id, Task_Levl_Id, Task_Id, AN_No, Emp_Id,
+                Work_Dt, Work_Done, Start_Time, End_Time, Work_Status, Det_string
+            } = req.body;
+
+            if (!Project_Id || !Sch_Id || !Task_Levl_Id || !Task_Id || !Emp_Id || !Work_Done || !Start_Time || !End_Time || !Work_Status) {
+                return invalidInput(res, 'Project_Id, Sch_Id, Task_Levl_Id, Task_Id, Emp_Id, Work_Done, Start_Time, End_Time, Work_Status is required')
+            }
+
+            if (Number(Mode) === 2 && Number(Work_Id) === 0) {
+                return invalidInput(res, 'Work_Id is required')
+            }
+
             const request = new sql.Request()
             request.input('Mode', Mode || 1)
             request.input('Work_Id', Work_Id)
@@ -133,8 +138,11 @@ const TaskWorks = () => {
     }
 
     const getAllGroupedWorkedData = async (req, res) => {
-        const { Emp_Id, Project_Id, Task_Id, from, to } = req.query;
         try {
+
+            const { Emp_Id = '', Project_Id = '', Task_Id = '' } = req.query;
+            const from = req.query.from ? ISOString(req.query.from) : ISOString();
+            const to = req.query.to ? ISOString(req.query.to) : ISOString();
 
             let query = `
             SELECT 
@@ -255,7 +263,8 @@ const TaskWorks = () => {
     };
 
     const taskWorkDetailsPieChart = async (req, res) => {
-        const { Emp_Id, reqDate } = req.query;
+        const { Emp_Id = '' } = req.query;
+        const reqDate = req.query.reqDate ? ISOString(req.query.reqDate) : ISOString();
 
         try {
             let query = `
@@ -311,9 +320,11 @@ const TaskWorks = () => {
     }
 
     const taskWorkDetailsBarChart = async (req, res) => {
-        const { Emp_Id, Task_Id, From, To } = req.query;
+        const { Emp_Id = '', Task_Id = '' } = req.query;
+        const From = req.query.From ? ISOString(req.query.From) : ISOString();
+        const To = req.query.To ? ISOString(req.query.To) : ISOString();
 
-        if (!checkIsNumber(Task_Id) || !isValidDate(From) || !isValidDate(To)) {
+        if (!checkIsNumber(Task_Id)) {
             return invalidInput(res, 'Task_Id, From, To is required, Emp_Id is optional')
         }
 
@@ -374,166 +385,3 @@ const TaskWorks = () => {
 }
 
 export default TaskWorks();
-
-
-    // const getEmployeeWorkedTask = async (req, res) => {
-    //     const { Emp_Id, reqDate } = req.query;
-
-    //     if (isNaN(Emp_Id)) {
-    //         return invalidInput(res, 'Emp_Id is required')
-    //     }
-
-    //     try {
-    //         const query = `
-    //         SELECT
-    //             wm.*,
-    //             p.Project_Name,
-    //             t.Task_Name,
-    //             u.Name AS EmployeeName,
-    //             s.Status AS WorkStatus,
-    //             COALESCE(
-    //                 (SELECT Timer_Based FROM tbl_Task_Details WHERE AN_No = wm.AN_No), 
-    //                 0
-    //             ) AS Timer_Based,
-    //             COALESCE((
-    //                 SELECT
-    //                     tp.*,
-    //                     wpm.Current_Value,
-    //                     pm.Paramet_Name,
-    //                     pm.Paramet_Data_Type
-    //                 FROM 
-    //                     tbl_Task_Paramet_DT AS tp
-    //                     LEFT JOIN tbl_Paramet_Master AS pm 
-    //                     ON pm.Paramet_Id = tp.Param_Id
-    //                     LEFT JOIN tbl_Work_Paramet_DT AS wpm 
-    //                     ON wpm.Work_Id = wm.Work_Id
-    //                 WHERE
-    //                     tp.Task_Id = wm.Task_Id
-    //                     AND
-    //                     tp.Param_Id = wpm.Param_Id
-    //                 FOR JSON PATH
-    //             ), '[]') AS Param_Dts  
-    //         FROM 
-    //             tbl_Work_Master AS wm
-    //         LEFT JOIN
-    //             tbl_Project_Master AS p ON p.Project_Id = wm.Project_Id
-    //         LEFT JOIN 
-    //             tbl_Task AS t ON t.Task_Id = wm.Task_Id
-    //         LEFT JOIN
-    //             tbl_Users AS u ON u.UserId = wm.Emp_Id
-    //         LEFT JOIN
-    //             tbl_Status AS s ON s.Status_Id = wm.Work_Status
-    //         LEFT JOIN
-    //             tbl_Task_Details AS td ON td.Task_Levl_Id = wm.Task_Levl_Id
-    //         WHERE 
-    //             wm.Emp_Id = @Emp_Id
-    //             AND CONVERT(DATE, wm.Work_DT) = CONVERT(DATE, @date)
-    //             AND (wm.AN_No = td.AN_No OR wm.AN_No = 0)
-    //         ORDER BY 
-    //             wm.Start_Time`
-    //         const result = await new sql.Request()
-    //             .input('Emp_Id', Emp_Id)
-    //             .input('date', isValidDate(reqDate) ? reqDate : new Date())
-    //             .query(query);
-
-    //         if (result.recordset.length > 0) {
-    //             result.recordset.map(o => {
-    //                 o.Param_Dts = JSON.parse(o?.Param_Dts)
-    //             })
-    //             dataFound(res, result.recordset)
-    //         } else {
-    //             noData(res)
-    //         }
-    //     } catch (e) {
-    //         servError(e, res)
-    //     }
-    // }
-
-    // const getAllWorkedDataOfEmp = async (req, res) => {
-    //     const { Emp_Id, Start, End, Task_Id } = req.query;
-
-    //     if (!Emp_Id) {
-    //         return invalidInput(res, 'Emp_Id is required')
-    //     }
-
-    //     try {
-    //         let query = `
-    //             SELECT
-    //                 wm.*,
-    //                 p.Project_Name,
-    //                 t.Task_Name,
-    //                 u.Name AS EmployeeName,
-    //                 s.Status AS WorkStatus,
-    //                 COALESCE(
-    //                     (SELECT Timer_Based FROM tbl_Task_Details WHERE AN_No = wm.AN_No), 
-    //                     0
-    //                 ) AS Timer_Based,
-	// 				COALESCE((
-	// 					SELECT 
-	// 						wp.Current_Value,
-	// 						wp.Default_Value,
-	// 						wp.Param_Id,
-	// 						pm.Paramet_Name,
-    //                         pm.Paramet_Data_Type
-	// 					FROM
-	// 						tbl_Work_Paramet_DT as wp
-	// 						LEFT JOIN tbl_Paramet_Master AS pm
-	// 						ON pm.Paramet_Id = wp.Param_Id
-	// 					WHERE 
-	// 						Work_Id = wm.Work_Id
-	// 					FOR JSON PATH
-	// 				), '[]') AS Parameter_Details
-    //             FROM 
-    //                 tbl_Work_Master AS wm
-    //             LEFT JOIN
-    //                 tbl_Project_Master AS p ON p.Project_Id = wm.Project_Id
-    //             LEFT JOIN 
-    //                 tbl_Task AS t ON t.Task_Id = wm.Task_Id
-    //             LEFT JOIN
-    //                 tbl_Users AS u ON u.UserId = wm.Emp_Id
-    //             LEFT JOIN
-    //                 tbl_Status AS s ON s.Status_Id = wm.Work_Status
-    //             LEFT JOIN
-    //                 tbl_Task_Details AS td ON td.Task_Levl_Id = wm.Task_Levl_Id
-    //             WHERE 
-    //                 (wm.AN_No = td.AN_No OR wm.AN_No = 0)
-    //                 AND
-    //                 wm.Emp_Id = @Emp_Id`;
-
-    //         if (Task_Id) {
-    //             query += `
-    //             AND
-    //             wm.Task_Id = @Task_Id
-    //             `
-    //         }
-
-    //         if (Start && End) {
-    //             query += `
-    //             AND
-    //             CONVERT(DATE, wm.Work_Dt) >= CONVERT(DATE, @Start)
-    //             AND
-    //             CONVERT(DATE, wm.Work_Dt) <= CONVERT(DATE, @End)`
-    //         }
-
-    //         query += `ORDER BY CONVERT(DATE, wm.Work_Dt) DESC, CONVERT(TIME, wm.Start_Time)`
-
-    //         const result = await new sql.Request()
-    //             .input('Emp_Id', sql.BigInt, Emp_Id)
-    //             .input('Task_Id', sql.BigInt, Task_Id)
-    //             .input('Start', sql.Date, Start)
-    //             .input('End', sql.Date, End)
-    //             .query(query)
-
-    //         if (result.recordset.length > 0) {
-    //             const parsedResponse = result.recordset.map(o => ({
-    //                 ...o,
-    //                 Parameter_Details: JSON.parse(o?.Parameter_Details)
-    //             }))
-    //             dataFound(res, parsedResponse)
-    //         } else {
-    //             noData(res)
-    //         }
-    //     } catch (e) {
-    //         servError(e, res)
-    //     }
-    // }

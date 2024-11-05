@@ -283,6 +283,10 @@ export const NumberFormat = (num) => {
     return Number(num).toLocaleString('en-IN', { maximumFractionDigits: 2 })
 }
 
+export const RoundNumber = (num) => {
+    return checkIsNumber(num) ? Number(num).toFixed(2) : 0;
+}
+
 export const Addition = (a, b) => {
     return Number(a) + Number(b)
 }
