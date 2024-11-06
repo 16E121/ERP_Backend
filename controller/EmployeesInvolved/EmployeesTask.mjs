@@ -205,12 +205,138 @@ const employeesTasks = () => {
 
 
 
+    
+    const getEmployeeAssignedInTheTask = async (req, res) => {
+        const { Task_Id, ProjectId,LevelId } = req.query;
+    
+        if (!Task_Id || !ProjectId || !LevelId) {
+            return invalidInput(res, 'Both Task_Id and ProjectId are required');
+        }
+    
+        try {
+            const getQuery = `
+                SELECT 
+                    td.*,
+                    (SELECT Name FROM tbl_Users WHERE UserId = td.Assigned_Emp_Id) AS AssignedUser,
+                    (SELECT Name FROM tbl_Users WHERE UserId = td.Emp_Id) AS EmployeeName,
+                    (SELECT Task_Name FROM tbl_Task WHERE Task_Id = td.Task_Id) AS TaskNameGet,
+                    pst.Sch_Project_Id,
+                    pst.Task_levl_Id
+                FROM 
+                  [dbo].[tbl_Task_Details]  AS td
+                INNER JOIN 
+                    [dbo].[tbl_Project_Sch_Task_DT] AS pst 
+                    ON td.Task_Id = pst.Task_Id
+                WHERE 
+                    td.Task_Id = @taskid
+                    AND pst.Sch_Project_Id = @projectid
+                    AND td.Task_Levl_Id=@levelid
+            `;
+    
+            const request = new sql.Request();
+            request.input('taskid', sql.Int, Task_Id);
+            request.input('projectid', sql.Int, ProjectId); 
+            request.input('levelid', sql.Int, LevelId);
+            const result = await request.query(getQuery);
+    
+            if (result.recordset.length > 0) {
+                dataFound(res, result.recordset);
+            } else {
+                noData(res);
+            }
+    
+        } catch (e) {
+            servError(e, res);
+        }
+    };
+
+    const modifyTaskAssignedForEmployee = async (req, res) => {
+        const {
+            AN_No, Project_Id, Sch_Id, Task_Levl_Id, Task_Id, Assigned_Emp_Id, Emp_Id, Task_Assign_dt, Sch_Period, Sch_Time,
+            EN_Time, Est_Start_Dt, Est_End_Dt, Ord_By, Timer_Based, Invovled_Stat
+        } = req.body;
+    
+        if (!AN_No || !Project_Id || !Sch_Id || !Task_Levl_Id || !Task_Id || !Assigned_Emp_Id || !Emp_Id || !Sch_Period || !Sch_Time
+            || !EN_Time || !Est_Start_Dt || !Est_End_Dt) {
+            return invalidInput(res, `AN_No, Project_Id, Sch_Id, Task_Levl_Id, Task_Id, Assigned_Emp_Id, Emp_Id, Sch_Period, Sch_Time, EN_Time, Est_Start_Dt, Est_End_Dt are required`);
+        }
+
+        try {
+            const request = new sql.Request();
+            request.input('Mode', 2);
+            request.input('AN_No', AN_No);
+            request.input('Project_Id', Project_Id);
+            request.input('Sch_Id', Sch_Id);
+            request.input('Task_Levl_Id', Task_Levl_Id);
+            request.input('Task_Id', Task_Id);
+            request.input('Assigned_Emp_Id', Assigned_Emp_Id);
+            request.input('Emp_Id', Emp_Id);
+            request.input('Task_Assign_dt', Task_Assign_dt || new Date().toISOString().split('T')[0]);
+            request.input('Sch_Period', Sch_Period);
+            request.input('Sch_Time', Sch_Time);
+            request.input('EN_Time', EN_Time);
+            request.input('Est_Start_Dt', Est_Start_Dt);
+            request.input('Est_End_Dt', Est_End_Dt);
+            request.input('Ord_By', Number(Ord_By) || 1);
+            request.input('Timer_Based', Boolean(Number(Timer_Based)) ? 1 : 0);
+            request.input('Invovled_Stat', Boolean(Number(Invovled_Stat)) ? 1 : 0);
+    
+            const result = await request.execute('Task_Assign_SP');
+    
+            if (result && result.rowsAffected && result.rowsAffected[0] > 0) {
+                return success(res, [], 'Changes saved');
+            } else {
+                return failed(res, 'Failed to save changes or record not found');
+            }
+    
+        } catch (e) {
+            return servError(e, res);
+        }
+    };
+    
+
+    
+    const deleteAssignedTaskDetails = async (req, res) => {
+
+            const { Task_Id } = req.query;
+            if (!Task_Id) {
+                return invalidInput(res, 'Task_Id is required')
+            }
+    
+            try {
+                const request = (await new sql.Request()
+                    .input('Task_Id', Task_Id)
+                    .query(`
+                            DELETE FROM tbl_Project_Sch_Task_DT where Task_Id =@Task_Id;
+                        DELETE FROM tbl_Task_Details WHERE Task_Id = @Task_Id;
+                        DELETE FROM tbl_Task_Paramet_DT WHERE Task_Id = @Task_Id;
+                    
+                        `)
+                ).rowsAffected[0]
+                // DELETE FROM tbl_Work_Master WHERE Task_Id = @Task_Id;
+  
+                if (request > 0) {
+                    return success(res, 'One Task Deleted');
+                } else {
+                    return failed(res, 'Failed to Delete Task')
+                }
+    
+            } catch (e) {
+                return servError(e, res)
+            }
+        
+    
+    };
+
     return {
         getEmployeeTasks,
         getusersDropDown,
         postEmployeesProjects,
         getUsersProjectId,
-        assignTaskForEmployee
+        assignTaskForEmployee,
+        getEmployeeAssignedInTheTask,
+        modifyTaskAssignedForEmployee,
+        deleteAssignedTaskDetails
     };
 };
 

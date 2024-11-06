@@ -104,7 +104,8 @@ MastersRouter.get('/Employeedetails/dropDown',employeesTasks.getusersDropDown)
 MastersRouter.post('/Employeedetails/employeeAdd',employeesTasks.postEmployeesProjects)
 MastersRouter.get('/Employeedetails/getusersproject',employeesTasks.getUsersProjectId)
 MastersRouter.post('/employeedetails/assignTask',employeesTasks.assignTaskForEmployee)
-
+MastersRouter.put('/employeedetails/updateTask',employeesTasks.modifyTaskAssignedForEmployee)
+MastersRouter.get('/employeedetails/assignedTaskDetails',employeesTasks.getEmployeeAssignedInTheTask)
+MastersRouter.delete('/employeedetails/deleteTask',employeesTasks.deleteAssignedTaskDetails)
 
 export default MastersRouter;
-

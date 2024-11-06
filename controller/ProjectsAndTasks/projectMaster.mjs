@@ -469,92 +469,71 @@ const projectController = () => {
             return invalidInput(res, 'Company_id is required');
         }
 
+      
         try {
             const request = new sql.Request()
                 .input('comp', Company_id)
                 .query(`
-   SELECT 
-    p.Project_Id, 
-    p.Project_Name, 
-    p.Est_Start_Dt, 
-    p.Est_End_Dt,
-
-    COALESCE(( 
-        SELECT 
-            COUNT(Sch_Id) 
-        FROM 
-            tbl_Project_Schedule 
-        WHERE 
-            Project_Id = p.Project_Id 
-            AND Sch_Del_Flag = 0
-    ), 0) AS SchedulesCount,
-
-    COALESCE(( 
-        SELECT 
-            COUNT(Sch_Id) 
-        FROM 
-            tbl_Project_Schedule 
-        WHERE 
-            Project_Id = p.Project_Id 
-            AND Sch_Del_Flag = 0
-            AND Sch_Status = 3
-    ), 0) AS SchedulesCompletedCount,
-
-    COALESCE(( 
-        SELECT 
-            COUNT(Task_Id) 
-        FROM 
-            tbl_Project_Sch_Task_DT 
-        WHERE 
-            Sch_Project_Id = p.Project_Id 
-            AND Task_Sch_Del_Flag = 0
-    ), 0) AS TasksScheduled,
-
-    COALESCE(( 
-        SELECT 
-            COUNT(A_Id)
-        FROM 
-            tbl_Project_Sch_Task_DT
-        WHERE 
-            Sch_Project_Id = p.Project_Id 
-            AND Task_Sch_Status = 3
-    ), 0) AS CompletedTasks,
-
-    COALESCE(( 
-        SELECT 
-            COUNT(DISTINCT Task_Levl_Id)
-        FROM 
-            tbl_Work_Master
-        WHERE 
-            Project_Id = p.Project_Id
-    ), 0) AS TasksProgressCount,
-
-    COALESCE(( 
-        SELECT 
-            COUNT(DISTINCT User_Id)
-        FROM 
-            tbl_Project_Employee
-        WHERE 
-            Project_Id = p.Project_Id
-    ), 0) AS EmployeesInvolved,
-
-    -- Count of distinct employees assigned to tasks for the current project
-    COALESCE(( 
-        SELECT 
-            COUNT(DISTINCT td.Emp_Id) 
-        FROM 
-            tbl_Task_Details AS td
-        WHERE 
-            td.Project_Id = p.Project_Id
-            AND td.Emp_Id IS NOT NULL
-    ), 0) AS TasksAssignedToEmployee
-
-FROM 
-    tbl_Project_Master AS p
-WHERE 
-    p.Project_Status NOT IN (3, 4)
-    AND p.IsActive != 0;
-      `)
+                              SELECT 
+                                   p.Project_Id, 
+                                   p.Project_Name, 
+                                   p.Est_Start_Dt, 
+                                   p.Est_End_Dt,
+                                
+                                  COALESCE(( 
+                                       SELECT COUNT(Sch_Id) 
+                                       FROM tbl_Project_Schedule 
+                                       WHERE Project_Id = p.Project_Id 
+                                       AND Sch_Del_Flag = 0
+                                   ), 0) AS SchedulesCount,
+                                
+                                   COALESCE(( 
+                                       SELECT COUNT(Sch_Id) 
+                                       FROM tbl_Project_Schedule 
+                                       WHERE Project_Id = p.Project_Id 
+                                       AND Sch_Del_Flag = 0 
+                                       AND Sch_Status = 3
+                                   ), 0) AS SchedulesCompletedCount,
+                                
+                                   COALESCE(( 
+                                       SELECT COUNT(Task_Id) 
+                                       FROM tbl_Project_Sch_Task_DT 
+                                       WHERE Sch_Project_Id = p.Project_Id 
+                                       AND Task_Sch_Del_Flag = 0
+                                   ), 0) AS TasksScheduled,
+                                                   
+                                
+                                   COALESCE(( 
+                                       SELECT COUNT(A_Id)
+                                       FROM tbl_Project_Sch_Task_DT
+                                       WHERE Sch_Project_Id = p.Project_Id 
+                                       AND Task_Sch_Status = 3
+                                   ), 0) AS CompletedTasks,
+                                
+                                   COALESCE(( 
+                                       SELECT COUNT(DISTINCT Task_Levl_Id)
+                                       FROM tbl_Work_Master
+                                       WHERE Project_Id = p.Project_Id
+                                   ), 0) AS TasksProgressCount,
+                                
+                                   COALESCE(( 
+                                       SELECT COUNT(DISTINCT User_Id)
+                                       FROM tbl_Project_Employee
+                                       WHERE Project_Id = p.Project_Id
+                                   ), 0) AS EmployeesInvolved,
+                                
+                                   COALESCE(( 
+                                       SELECT COUNT(DISTINCT td.Task_Id)
+                                       FROM tbl_Task_Details AS td
+                                       WHERE td.Project_Id = p.Project_Id
+                                   ), 0) AS TotalTaskAssignments
+                                
+                                FROM 
+                                   tbl_Project_Master AS p
+                                WHERE 
+                                   p.Project_Status NOT IN (3, 4)
+                                   AND p.IsActive != 0;`
+                                )
             // AND p.Company_id = @comp
             const result = await request;
 
