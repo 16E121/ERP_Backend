@@ -11,6 +11,7 @@ import projectRoute from './projectsAndTasks.mjs';
 import UserModule from './userModule.mjs';
 import ReportRouter from './reports.mjs';
 import SalesRouter from './sales.mjs';
+import PurchaseRouter from './purchase.mjs'
 
 const indexRouter = express.Router();
 
@@ -21,6 +22,7 @@ indexRouter.use('/dataEntry', dataEntryRouter);
 indexRouter.use('/discussionForum', TopicsRouter);
 indexRouter.use('/masters', MastersRouter);
 indexRouter.use('/sales', SalesRouter);
+indexRouter.use('/purchase', PurchaseRouter);
 indexRouter.use('/taskManagement', projectRoute);
 indexRouter.use('/reports', ReportRouter)
 indexRouter.use('/userModule', UserModule);

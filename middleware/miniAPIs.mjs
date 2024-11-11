@@ -311,9 +311,11 @@ export const getRetailerInfo = async (retailerId) => {
     }
 }
 
-export const getProducts = async () => {
+export const getProducts = async (IS_Sold = 1) => {
     try {
-        const request = new sql.Request().query(`
+        const request = new sql.Request()
+            .input('IS_Sold', IS_Sold)
+            .query(`
             WITH UOM AS (
                 SELECT *
                 FROM tbl_UOM
@@ -353,7 +355,9 @@ export const getProducts = async () => {
                 ON pg.Pro_Group_Id = p.Product_Group
                 LEFT JOIN UOM AS u
                 ON u.Unit_Id = p.UOM_Id
-            `);
+            WHERE
+                p.IS_Sold = @IS_Sold ;`
+            );
         const result = await request;
 
         if (result.recordset.length > 0) {
@@ -409,5 +413,39 @@ export const getNextId = async ({ table = '', column = '' }) => {
                 error: e
             }
         })
+    }
+}
+
+export const getLargeData = async (exeQuery, db) => {
+    try {
+        const requestInTallyDB = new sql.Request(db);
+        const requestInMainDB = new sql.Request();
+        const request = db ? requestInTallyDB : requestInMainDB;
+
+        request.stream = true;
+
+        request.query(exeQuery);
+
+        return new Promise((resolve, reject) => {
+            const rows = []; // Array to collect rows as they stream in
+
+            // Handle each row
+            request.on('row', (row) => {
+                rows.push(row);
+            });
+
+            // Handle query errors
+            request.on('error', (err) => {
+                reject(err);
+            });
+
+            // When done, resolve with all collected rows
+            request.on('done', () => {
+                resolve(rows);
+            });
+        });
+    } catch (e) {
+        console.error('ERROR in middleware getLargeData: ', e)
+        return [];
     }
 }

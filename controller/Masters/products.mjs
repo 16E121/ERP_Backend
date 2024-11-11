@@ -9,8 +9,6 @@ import { getNextId } from '../../middleware/miniAPIs.mjs';
 
 dotenv.config();
 
-
-
 const deleteCurrentProductImage = async (productId) => {
     const getImageQuery = `
         SELECT Product_Image_Path
@@ -35,37 +33,41 @@ const deleteCurrentProductImage = async (productId) => {
 const sfProductController = () => {
 
     const getProducts = async (req, res) => {
+        const { IS_Sold = 1 } = req.query;
 
         try {
-            const query = `
-            SELECT 
-            	p.*,
-            	COALESCE(b.Brand_Name, 'NOT FOUND') AS Brand_Name,
-            	COALESCE(pg.Pro_Group, 'NOT FOUND') AS Pro_Group,
-                COALESCE(u.Units, 'NOT FOUND') AS Units,
-                COALESCE((
+
+            const request = new sql.Request()
+                .input('IS_Sold', IS_Sold)
+                .query(`
                     SELECT 
-                        TOP (1) Product_Rate 
+                    	p.*,
+                    	COALESCE(b.Brand_Name, 'NOT FOUND') AS Brand_Name,
+                    	COALESCE(pg.Pro_Group, 'NOT FOUND') AS Pro_Group,
+                        COALESCE(u.Units, 'NOT FOUND') AS Units,
+                        COALESCE((
+                            SELECT 
+                                TOP (1) Product_Rate 
+                            FROM 
+                                tbl_Pro_Rate_Master 
+                            WHERE 
+                                Product_Id = p.Product_Id
+                            ORDER BY
+                                CONVERT(DATETIME, Rate_Date) DESC
+                        ), 0) AS Item_Rate
                     FROM 
-                        tbl_Pro_Rate_Master 
-                    WHERE 
-                        Product_Id = p.Product_Id
-                    ORDER BY
-                        CONVERT(DATETIME, Rate_Date) DESC
-                ), 0) AS Item_Rate
-            FROM 
-            	tbl_Product_Master AS p
-            	LEFT JOIN tbl_Brand_Master AS b
-            	ON b.Brand_Id = p.Brand
-            	LEFT JOIN tbl_Product_Group AS pg
-            	ON pg.Pro_Group_Id = p.Product_Group
-                LEFT JOIN tbl_UOM AS u
-                ON u.Unit_Id = p.UOM_Id
-            `;
+                    	tbl_Product_Master AS p
+                    	LEFT JOIN tbl_Brand_Master AS b
+                    	ON b.Brand_Id = p.Brand
+                    	LEFT JOIN tbl_Product_Group AS pg
+                    	ON pg.Pro_Group_Id = p.Product_Group
+                        LEFT JOIN tbl_UOM AS u
+                        ON u.Unit_Id = p.UOM_Id
+                    WHERE
+                        IS_Sold = @IS_Sold`
+                    )
 
-            const request = new sql.Request();
-
-            const result = await request.query(query);
+            const result = await request;
 
             if (result.recordset.length) {
                 const withPic = result.recordset.map(o => ({
@@ -82,6 +84,7 @@ const sfProductController = () => {
     }
 
     const getGroupedProducts = async (req, res) => {
+        const { IS_Sold = 1 } = req.query;
 
         try {
             const query = `
@@ -140,11 +143,14 @@ const sfProductController = () => {
             FROM
                 tbl_Product_Group AS g
             WHERE
-                g.Pro_Group_Id != 0 
+                g.Pro_Group_Id != 0
+                AND
+                IS_Sold = @IS_Sold 
             ORDER BY 
                 g.Pro_Group_Id`;
 
-            const request = new sql.Request();
+            const request = new sql.Request()
+                .input('IS_Sold', IS_Sold)
             const result = await request.query(query);
 
             if (result.recordset.length > 0) {

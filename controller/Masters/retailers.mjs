@@ -18,78 +18,77 @@ const RetailerControll = () => {
     const domain = process.env.domain;
 
     const getSFCustomers = async (req, res) => {
-        const { Company_Id } = req.query;
-
-        if (!checkIsNumber(Company_Id)) {
-            return invalidInput(res, 'Company_Id is required');
-        }
+        const { isRetailer = 1, isVendor = 0 } = req.query;
 
         try {
-            const getQuery = `
-            SELECT 
-                rm.*,
-                COALESCE(rom.Route_Name, '') AS RouteGet,
-                COALESCE(am.Area_Name, '') AS AreaGet,
-                COALESCE(sm.State_Name, '') AS StateGet,
-                COALESCE(cm.Company_Name, '') AS Company_Name,
-                COALESCE(modify.Name, '') AS lastModifiedBy,
-                COALESCE(created.Name, '') AS createdBy,
-                COALESCE((
+
+            const request = new sql.Request()
+                .input('isRetailer', isRetailer)
+                .input('isVendor', isVendor)
+                .query(`
                     SELECT 
-                        TOP (1) *
-                    FROM 
-                        tbl_Retailers_Locations
-                    WHERE
-                        Retailer_Id = rm.Retailer_Id
-                        AND
-                        isActiveLocation = 1
-                    FOR JSON PATH, WITHOUT_ARRAY_WRAPPER
-                ), '{}') AS VERIFIED_LOCATION,
-                COALESCE((
-                    SELECT
-                    	TOP (5) 
-                        ml.*,
+                        rm.*,
+                        COALESCE(rom.Route_Name, '') AS RouteGet,
+                        COALESCE(am.Area_Name, '') AS AreaGet,
+                        COALESCE(sm.State_Name, '') AS StateGet,
+                        COALESCE(cm.Company_Name, '') AS Company_Name,
+                        COALESCE(modify.Name, '') AS lastModifiedBy,
+                        COALESCE(created.Name, '') AS createdBy,
                         COALESCE((
-                            SELECT NAME FROM tbl_Users WHERE UserId = ml.EntryBy
-                        ), 'unknown') AS EntryByGet
+                            SELECT 
+                                TOP (1) *
+                            FROM 
+                                tbl_Retailers_Locations
+                            WHERE
+                                Retailer_Id = rm.Retailer_Id
+                                AND
+                                isActiveLocation = 1
+                            FOR JSON PATH, WITHOUT_ARRAY_WRAPPER
+                        ), '{}') AS VERIFIED_LOCATION,
+                        COALESCE((
+                            SELECT
+                            	TOP (5) 
+                                ml.*,
+                                COALESCE((
+                                    SELECT NAME FROM tbl_Users WHERE UserId = ml.EntryBy
+                                ), 'unknown') AS EntryByGet
+                            FROM
+                            	tbl_Retailers_Locations AS ml
+                            WHERE
+                                rm.Retailer_Id = ml.Retailer_Id
+                            ORDER BY
+                                CONVERT(DATETIME, EntryAt) DESC
+                            FOR JSON PATH
+                        ), '[]') AS AllLocations
                     FROM
-                    	tbl_Retailers_Locations AS ml
+                        tbl_Retailers_Master AS rm
+                    LEFT JOIN
+                        tbl_Route_Master AS rom
+                        ON rom.Route_Id = rm.Route_Id
+                    LEFT JOIN
+                        tbl_Area_Master AS am
+                        ON am.Area_Id = rm.Area_Id
+                    LEFT JOIN
+                        tbl_State_Master AS sm
+                        ON sm.State_Id = rm.State_Id
+                    LEFT JOIN
+                        tbl_Company_Master AS cm
+                        ON cm.Company_id = rm.Company_Id
+                    LEFT JOIN
+                        tbl_Users AS modify
+                        ON modify.UserId = rm.Updated_By
+                    LEFT JOIN
+                        tbl_Users AS created
+                        ON created.UserId = rm.Created_By
                     WHERE
-                        rm.Retailer_Id = ml.Retailer_Id
-                    ORDER BY
-                        CONVERT(DATETIME, EntryAt) DESC
-                    FOR JSON PATH
-                ), '[]') AS AllLocations
-            FROM
-                tbl_Retailers_Master AS rm
-            LEFT JOIN
-                tbl_Route_Master AS rom
-                ON rom.Route_Id = rm.Route_Id
-            LEFT JOIN
-                tbl_Area_Master AS am
-                ON am.Area_Id = rm.Area_Id
-            LEFT JOIN
-                tbl_State_Master AS sm
-                ON sm.State_Id = rm.State_Id
-            LEFT JOIN
-                tbl_Company_Master AS cm
-                ON cm.Company_id = rm.Company_Id
-            LEFT JOIN
-                tbl_Users AS modify
-                ON modify.UserId = rm.Updated_By
-            LEFT JOIN
-                tbl_Users AS created
-                ON created.UserId = rm.Created_By
-            ORDER BY 
-                rm.Retailer_Name`;
+                        isRetailer = @isRetailer
+                        AND
+                        isVendor = @isVendor
+                    ORDER BY 
+                        rm.Retailer_Name`
+                )
 
-                // WHERE
-                // rm.Company_Id = @company
-
-            const request = new sql.Request();
-            request.input('company', Company_Id);
-
-            const result = await request.query(getQuery);
+            const result = await request;
 
             if (result.recordset.length) {
                 const parsed = result.recordset.map(o => ({
@@ -108,26 +107,25 @@ const RetailerControll = () => {
     }
 
     const getRetailerDropDown = async (req, res) => {
-        const { Company_Id } = req.query;
-
-        if (!checkIsNumber(Company_Id)) {
-            return invalidInput(res, 'Company_Id is required');
-        }
+        const { isRetailer = 1, isVendor = 0 } = req.query;
 
         try {
-            const query = `
-            SELECT 
-                Retailer_Id,
-                Retailer_Name
-            FROM 
-                tbl_Retailers_Master
-            `
-            // WHERE
-            //     Company_Id = @comp
-            const request = new sql.Request();
-            request.input('comp', Company_Id);
+            const request = new sql.Request()
+                .input('isRetailer', isRetailer)
+                .input('isVendor', isVendor)
+                .query(`
+                    SELECT 
+                        Retailer_Id,
+                        Retailer_Name
+                    FROM 
+                        tbl_Retailers_Master
+                    WHERE
+                        isRetailer = @isRetailer
+                        AND
+                        isVendor = @isVendor`
+                )
 
-            const result = await request.query(query);
+            const result = await request;
 
             if (result.recordset.length > 0) {
                 dataFound(res, result.recordset)
@@ -140,11 +138,7 @@ const RetailerControll = () => {
     }
 
     const getAreaRetailers = async (req, res) => {
-        const { Company_Id } = req.query;
-
-        if (!checkIsNumber(Company_Id)) {
-            return invalidInput(res, 'Company_Id is required');
-        }
+        const { isRetailer = 1, isVendor = 0 } = req.query;
 
         try {
             const query = `
@@ -204,10 +198,12 @@ const RetailerControll = () => {
             			// AND
             			// rm.Company_Id = @comp
 
-            const request = new sql.Request();
-            request.input('comp', Company_Id);
+            const request = new sql.Request()
+                .input('isRetailer', isRetailer)
+                .input('isVendor', isVendor)
+                .query(query);
 
-            const result = await request.query(query);
+            const result = await request;
 
             if (result.recordset.length > 0) {
                 const parsed = result.recordset.map(o => ({
@@ -336,7 +332,7 @@ const RetailerControll = () => {
                 Retailer_Name, Contact_Person, Mobile_No, Retailer_Channel_Id, PinCode,
                 Retailer_Class, Route_Id, Area_Id, Reatailer_Address, Reatailer_City,
                 State_Id, Branch_Id, Gstno, Latitude, Longitude,
-                Created_By, Company_Id
+                Created_By, Company_Id, isRetailer = 1, isVendor = 0
             } = req.body;
 
             const request = new sql.Request()
@@ -375,6 +371,9 @@ const RetailerControll = () => {
                 .input('filesize', filesize ? filesize : null)
                 .input('other5', null)
                 .input('company', Company_Id)
+
+                .input('isRetailer', isRetailer)
+                .input('isVendor', isVendor)
                 .query(`
                     INSERT INTO tbl_Retailers_Master (
                         Retailer_Code, Retailer_Name,  Contact_Person,  Mobile_No,  Retailer_Channel_Id, 
@@ -382,14 +381,16 @@ const RetailerControll = () => {
                         PinCode, State_Id, Sales_Force_Id, Branch_Id, Gstno,
                         ERP_Id, Latitude, Longitude, Profile_Pic, Created_Date,
                         Created_By, Updated_Date, Updated_By, Del_Flag, ImageName,
-                        ImagePath, ImageType, ImageSize, Others_5,  Company_Id 
+                        ImagePath, ImageType, ImageSize, Others_5,  Company_Id,
+                        isRetailer, isVendor 
                     ) VALUES (
                         @code, @rname, @cperson, @mobile, @channel, 
                         @rclass, @route, @area, @address, @city, 
                         @pincode, @state, @salesforce, @branch, @gst, 
                         @erp, @lati, @long, @profile, @created, 
                         @createdby, @update, @updateby, @dflag, @filename, 
-                        @filepath, @filetype, @filesize, @other5, @company 
+                        @filepath, @filetype, @filesize, @other5, @company,
+                        @isRetailer, @isVendor 
                     )
                 `)
 
@@ -420,7 +421,7 @@ const RetailerControll = () => {
             const {
                 Retailer_Id, Retailer_Name, Contact_Person, Mobile_No, Retailer_Channel_Id,
                 Retailer_Class, Route_Id, Area_Id, Reatailer_Address, Reatailer_City, PinCode,
-                State_Id, Gstno, Updated_By
+                State_Id, Gstno, Updated_By, isRetailer = 1, isVendor = 0
             } = req.body;
 
             const updateQuery = `
@@ -442,7 +443,11 @@ const RetailerControll = () => {
                     State_Id = @state,
                     Gstno = @gst,
                     Updated_By = @updatedby,
-                    Updated_Date = @updated
+                    Updated_Date = @updated,
+
+                    isRetailer = @isRetailer,
+                    isVendor = @isVendor
+
 
                     ${fileName ? ', Profile_Pic = @profile, ImageName = @imagename, ImagePath = @imagepath, ImageType = @imagetype, ImageSize = @imagesize' : ''}
                     
@@ -473,7 +478,8 @@ const RetailerControll = () => {
                 .input('imagepath', filePath ? filePath : null)
                 .input('imagetype', filetype ? filetype : null)
                 .input('imagesize', filesize ? filesize : null)
-
+                .input('isRetailer', isRetailer)
+                .input('isVendor', isVendor)
                 .query(updateQuery)
 
             const result = await request;
@@ -742,14 +748,14 @@ const RetailerControll = () => {
                         PinCode, State_Id, Sales_Force_Id, Branch_Id, Gstno,
                         ERP_Id, Latitude, Longitude, Profile_Pic, Created_Date,
                         Created_By, Updated_Date, Updated_By, Del_Flag, ImageName,
-                        ImagePath, ImageType, ImageSize, Company_Id 
+                        ImagePath, ImageType, ImageSize, Company_Id, isRetailer 
                     ) VALUES (
                         @code, @rname, @cperson, @mobile, @channel, 
                         @rclass, @route, @area, @address, @city, 
                         @pincode, @state, @salesforce, @branch, @gst, 
                         @erp, @lati, @long, @profile, @created, 
                         @createdby, @update, @updateby, @dflag, @filename, 
-                        @filepath, @filetype, @filesize, @company 
+                        @filepath, @filetype, @filesize, @company, 1
                     );
 
                     SELECT SCOPE_IDENTITY() AS Retailer_Id

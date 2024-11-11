@@ -3,6 +3,7 @@ import { servError, dataFound, noData, success, failed, invalidInput } from '../
 import { checkIsNumber, isValidObject } from '../../helper_functions.mjs'
 import fetch from 'node-fetch';
 import dotenv from 'dotenv';
+import { getLargeData } from '../../middleware/miniAPIs.mjs';
 dotenv.config();
 
 
@@ -482,7 +483,7 @@ const ReportTemplate = () => {
                 }
             }
 
-            const getQueryResult = (await new sql.Request(req.db).query(exeQuery)).recordset;
+            const getQueryResult = await getLargeData(exeQuery, req.db);
 
             if (getQueryResult.length > 0) {
                 dataFound(res, getQueryResult);
