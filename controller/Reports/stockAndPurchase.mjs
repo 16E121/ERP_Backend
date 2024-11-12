@@ -95,20 +95,41 @@ const StockAndPurchaseReport = () => {
     }
 
     const salesReport = async (req, res) => {
-        const Fromdate = ISOString(req.query.Fromdate);
-        const Todate = ISOString(req.query.Todate);
+        // const Fromdate = ISOString(req.query.Fromdate);
+        // const Todate = ISOString(req.query.Todate);
 
         try {
 
-            const DynamicDB = new sql.Request(req.db)
-                .input('Fromdate', Fromdate)
-                .input('To_date', Todate)
-                .execute('Avg_Live_Sales_Report')
-
-            const result = await DynamicDB;
+            const result = await new sql.Request(req.db)
+                // .input('Fromdate', Fromdate)
+                // .input('To_date', Todate)
+                .execute('Avg_Live_Sales_Report_3')
 
             if (result.recordsets[0].length > 0) {
-                dataFound(res, result.recordsets[0], 'dataFound', { ledgerDetails: result.recordsets[1] })
+                dataFound(res, result.recordsets[0], 'dataFound', { dataTypeInfo: result.recordsets[1] })
+            } else {
+                noData(res)
+            }
+        } catch (e) {
+            servError(e, res)
+        }
+    }
+
+    const salesItemDetails = async (req, res) => {
+        const Fromdate = ISOString(req.query.Fromdate);
+        const Todate = ISOString(req.query.Todate);
+        const Ledger_Id = req.query.Ledger_Id;
+
+        try {
+
+            const result = await new sql.Request(req.db)
+                .input('Fromdate', Fromdate)
+                .input('To_date', Todate)
+                .input('Ledger_Id', Number(Ledger_Id))
+                .execute('Avg_Live_Sales_Report_2')
+
+            if (result.recordset.length > 0) {
+                dataFound(res, result.recordsets[0], 'dataFound', { dataTypeInfo: result.recordsets[1] })
             } else {
                 noData(res)
             }
@@ -216,6 +237,7 @@ const StockAndPurchaseReport = () => {
         purchaseReport,
         externalAPI,
         salesReport,
+        salesItemDetails,
         porductBasedSalesResult,
         externalAPIPurchase,
         externalAPISaleOrder,
