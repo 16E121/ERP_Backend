@@ -1,5 +1,7 @@
 import sql from 'mssql'
 import { servError, dataFound, noData, invalidInput } from '../../res.mjs';
+import { ISOString } from '../../helper_functions.mjs';
+import SPCall from '../../middleware/SPcall.mjs';
 
 
 const DashboardController = () => {
@@ -350,7 +352,7 @@ const DashboardController = () => {
 
                 const levelOneParsed = result.recordset.map(o => ({
                     ...o,
-                    Projects: JSON.parse(o.Projects), 
+                    Projects: JSON.parse(o.Projects),
                     AssignedTasks: JSON.parse(o.AssignedTasks),
                     WorkDetails: o?.WorkDetails ? JSON.parse(o?.WorkDetails) : []
                 }))
@@ -373,7 +375,7 @@ const DashboardController = () => {
 
                 const levelThreeParsed = levelTwoParsed.map(o => ({
                     ...o,
-                    
+
                     AssignedTasks: o?.AssignedTasks?.map(ao => ({
                         ...ao,
                         Work_Details: ao?.Work_Details?.map(wo => ({
@@ -396,7 +398,7 @@ const DashboardController = () => {
     const getERPDashboardData = async (req, res) => {
         const { Fromdate, Company_Id } = req.query;
 
-        if(!Fromdate || (isNaN(Company_Id) && !Company_Id)) {
+        if (!Fromdate || (isNaN(Company_Id) && !Company_Id)) {
             return invalidInput(res, 'Fromdate, Company_Id is required')
         }
 
@@ -408,13 +410,34 @@ const DashboardController = () => {
             const result = await request.execute('Dashboard_Online_Report_VW');
 
             if (result.recordsets) {
-                dataFound(res, result.recordsets) 
+                dataFound(res, result.recordsets)
             } else {
                 noData(res)
             }
 
-        } catch (e) { 
-            servError(e, res) 
+        } catch (e) {
+            servError(e, res)
+        }
+    }
+
+    const getSalesInfo = async (req, res) => {
+        const Fromdate = ISOString(req.query.Fromdate);
+        const Todate = ISOString(req.query.Todate);
+
+        try {
+            const result = await SPCall({
+                SPName: 'Dash_Board_Live_Sales', spParamerters: {
+                    Fromdate, Todate
+                }, spTransaction: req.db
+            });
+
+            if (result && result?.recordset?.length > 0) {
+                dataFound(res, result.recordset);
+            } else {
+                noData(res)
+            }
+        } catch (e) {
+            console.error(e);
         }
     }
 
@@ -423,6 +446,7 @@ const DashboardController = () => {
         getTallyWorkDetails,
         getEmployeeAbstract,
         getERPDashboardData,
+        getSalesInfo,
     }
 }
 
