@@ -95,14 +95,14 @@ const StockAndPurchaseReport = () => {
     }
 
     const salesReport = async (req, res) => {
-        // const Fromdate = ISOString(req.query.Fromdate);
-        // const Todate = ISOString(req.query.Todate);
+        const Fromdate = ISOString(req.query.Fromdate);
+        const Todate = ISOString(req.query.Todate);
 
         try {
 
             const result = await new sql.Request(req.db)
-                // .input('Fromdate', Fromdate)
-                // .input('To_date', Todate)
+                .input('Fromdate', Fromdate)
+                .input('To_date', Todate)
                 .execute('Avg_Live_Sales_Report_3')
 
             if (result.recordsets[0].length > 0) {
