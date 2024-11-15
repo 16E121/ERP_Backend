@@ -40,7 +40,7 @@ const PurchaseOrder = () => {
             || !checkIsNumber(Created_by)
             || (!Array.isArray(Product_Array) || Product_Array.length === 0)
         ) {
-            return invalidInput(res, 'Retailer_Id, Sales_Person_Id, Created_by, Product_Array is Required')
+            return invalidInput(res, 'Retailer_Id, Created_by, Product_Array is Required')
         }
 
         const transaction = new sql.Transaction();
@@ -432,7 +432,7 @@ const PurchaseOrder = () => {
     }
 
     const getPurchaseOrder = async (req, res) => {
-        const { Retailer_Id, Cancel_status, Created_by, Sales_Person_Id } = req.query;
+        const { Retailer_Id, Cancel_status, Created_by } = req.query;
 
         const Fromdate = ISOString(req.query.Fromdate), Todate = ISOString(req.query.Todate);
 
@@ -458,7 +458,6 @@ const PurchaseOrder = () => {
             SELECT 
             	so.*,
             	COALESCE(rm.Retailer_Name, 'unknown') AS Retailer_Name,
-            	COALESCE(sp.Name, 'unknown') AS Sales_Person_Name,
             	COALESCE(bm.BranchName, 'unknown') AS Branch_Name,
             	COALESCE(cb.Name, 'unknown') AS Created_BY_Name,
 
@@ -478,8 +477,6 @@ const PurchaseOrder = () => {
             	LEFT JOIN tbl_Retailers_Master AS rm
             	ON rm.Retailer_Id = so.Retailer_Id
             
-            	LEFT JOIN tbl_Users AS sp
-            	ON sp.UserId = so.Sales_Person_Id
             
             	LEFT JOIN tbl_Branch_Master bm
             	ON bm.BranchId = so.Branch_Id
@@ -492,6 +489,11 @@ const PurchaseOrder = () => {
             	AND
             	CONVERT(DATE, so.Po_Date) <= CONVERT(DATE, @to) 
             `;
+
+            
+            // COALESCE(sp.Name, 'unknown') AS Sales_Person_Name,
+            // LEFT JOIN tbl_Users AS sp
+            // ON sp.UserId = so.Sales_Person_Id
 
             if (Retailer_Id) {
                 query += `
@@ -511,12 +513,6 @@ const PurchaseOrder = () => {
             	so.Created_by = @creater `
             }
 
-            if (Sales_Person_Id) {
-                query += `
-                AND
-                so.Sales_Person_Id = @salesPerson `
-            }
-
             query += `
             ORDER BY CONVERT(DATETIME, so.Po_Id) DESC`;
 
@@ -526,7 +522,6 @@ const PurchaseOrder = () => {
             request.input('retailer', Retailer_Id);
             request.input('cancel', Cancel_status);
             request.input('creater', Created_by);
-            request.input('salesPerson', Sales_Person_Id)
 
             const result = await request.query(query);
 
