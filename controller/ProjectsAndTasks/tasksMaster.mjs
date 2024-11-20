@@ -90,6 +90,7 @@ const taskModule = () => {
 
     const createTask = async (req, res) => {
         const {
+        
             Task_Name = '',
             Task_Desc = '',
             Task_Group_Id = null,
@@ -330,31 +331,31 @@ const taskModule = () => {
                 .input('Task_Id', sql.Int, Task_Id)
                 .query(`
                     SELECT 
-    t.*, 
-    COALESCE(tt.Task_Type, 'Unknown') AS Task_Group,
-    COALESCE((
-        SELECT 
-            param.PA_Id,
-            param.Task_Id,
-            param.Param_Id AS Paramet_Id,
-            param.Default_Value,
-            pm.Paramet_Name,
-            pm.Paramet_Data_Type
-        FROM
-            tbl_Task_Paramet_DT AS param
-        JOIN 
-            tbl_Paramet_Master AS pm ON pm.Paramet_Id = param.Param_Id
-        WHERE
-            param.Task_Id = t.Task_Id
-        FOR JSON PATH
-    ), '[]') AS Task_Parameters
-FROM 
-    tbl_Task AS t
-LEFT JOIN 
-    tbl_Task_Type AS tt ON tt.Task_Type_Id = t.Task_Group_Id
-WHERE 
-    t.Task_Id = @Task_Id
-
+                        t.*, 
+                        COALESCE(tt.Task_Type, 'Unknown') AS Task_Group,
+                        COALESCE((
+                            SELECT 
+                                param.PA_Id,
+                                param.Task_Id,
+                                param.Param_Id AS Paramet_Id,
+                                param.Default_Value,
+                                pm.Paramet_Name,
+                                pm.Paramet_Data_Type
+                            FROM
+                                tbl_Task_Paramet_DT AS param
+                            JOIN 
+                                tbl_Paramet_Master AS pm ON pm.Paramet_Id = param.Param_Id
+                            WHERE
+                                param.Task_Id = t.Task_Id
+                            FOR JSON PATH
+                        ), '[]') AS Task_Parameters
+                    FROM 
+                        tbl_Task AS t
+                    LEFT JOIN 
+                        tbl_Task_Type AS tt ON tt.Task_Type_Id = t.Task_Group_Id
+                    WHERE 
+                        t.Task_Id = @Task_Id
+                    
                 `);
 
             const task = request.recordset[0];

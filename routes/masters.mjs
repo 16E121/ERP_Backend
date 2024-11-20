@@ -108,4 +108,8 @@ MastersRouter.put('/employeedetails/updateTask',employeesTasks.modifyTaskAssigne
 MastersRouter.get('/employeedetails/assignedTaskDetails',employeesTasks.getEmployeeAssignedInTheTask)
 MastersRouter.delete('/employeedetails/deleteTask',employeesTasks.deleteAssignedTaskDetails)
 
+MastersRouter.delete('/employeedetails/deleteTask',employeesTasks.deleteAssignedTaskDetails)
+MastersRouter.get('/employeedetails/selectedTaskDetails',employeesTasks.selectedTaskDetails)
+
+
 export default MastersRouter;

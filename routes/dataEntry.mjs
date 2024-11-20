@@ -8,6 +8,7 @@ import staffActivity from "../controller/DataEntry/staffActivity.mjs";
 import driverActivity from "../controller/DataEntry/driverActivity.mjs";
 import { getMachineOuternController, MachineOuternControll } from '../controller/DataEntry/machineOutern.mjs';
 import { getInwardActivity, InwardActivityControll } from '../controller/DataEntry/inwardActivity.mjs';
+import purchaseOrder from '../controller/DataEntry/purchaseOrder.mjs';
 
 const dataEntryRouter = express.Router();
 
@@ -64,6 +65,11 @@ dataEntryRouter.put('/weightCheckActivity', weightChecking.editWGCheckActivity)
 dataEntryRouter.get('/dataEntryAttendance', attendance.getAttendanceNew)
 dataEntryRouter.post('/dataEntryAttendance', attendance.insertAttendance)
 dataEntryRouter.put('/dataEntryAttendance', attendance.updateAttendance)
+
+
+// Purchase Order
+dataEntryRouter.post('/purchaseOrderEntry', purchaseOrder.createPurchaseOrder)
+dataEntryRouter.put('/purchaseOrderEntry', purchaseOrder.updatePurchaseOrder)
 
 
 export default dataEntryRouter;
