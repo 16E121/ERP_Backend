@@ -4,6 +4,108 @@ import { extractHHMM, ISOString } from '../../helper_functions.mjs';
 
 const PurchaseOrderDataEntry = () => {
 
+    const getPurchaseOrder = async (req, res) => {
+        const Fromdate = ISOString(req.query.Fromdate);
+        const Todate = ISOString(req.query.Todate);
+
+        try {
+            const request = new sql.Request()
+                .input('Fromdate', Fromdate)
+                .input('Todate', Todate)
+                .query(`
+                    WITH ITEM_DETAILS AS (
+                    	SELECT 
+                    		*
+                    	FROM
+                    		tbl_PurchaseOrderItemDetails
+                    	WHERE
+                    		OrderId IN (
+                    			SELECT 
+                    				pgi.Id
+                    			FROM
+                    				tbl_PurchaseOrderGeneralDetails AS pgi
+                    			WHERE
+                    				CONVERT(DATE, pgi.LoadingDate) >= CONVERT(DATE, @Fromdate)
+                    				AND
+                    				CONVERT(DATE, pgi.LoadingDate) <= CONVERT(DATE, @Todate)
+                    		)
+                    ), DELIVERY_DETAILS AS (
+                    	SELECT 
+                    		*
+                    	FROM
+                    		tbl_PurchaseOrderDeliveryDetails
+                    	WHERE
+                    		OrderId IN (
+                    			SELECT 
+                    				pgi.Id
+                    			FROM
+                    				tbl_PurchaseOrderGeneralDetails AS pgi
+                    			WHERE
+                    				CONVERT(DATE, pgi.LoadingDate) >= CONVERT(DATE, @Fromdate)
+                    				AND
+                    				CONVERT(DATE, pgi.LoadingDate) <= CONVERT(DATE, @Todate)
+                    		)
+                    ), TRANSPOTER_DETAILS AS (
+                    	SELECT 
+                    		*
+                    	FROM
+                    		tbl_PurchaseOrderTranspoterDetails
+                    	WHERE
+                    		OrderId IN (
+                    			SELECT 
+                    				pgi.Id
+                    			FROM
+                    				tbl_PurchaseOrderGeneralDetails AS pgi
+                    			WHERE
+                    				CONVERT(DATE, pgi.LoadingDate) >= CONVERT(DATE, @Fromdate)
+                    				AND
+                    				CONVERT(DATE, pgi.LoadingDate) <= CONVERT(DATE, @Todate)
+                    		)
+                    )
+                    SELECT 
+                    	pgi.*,
+                    	ISNULL((
+                    		SELECT JSON_QUERY((
+                    			SELECT * FROM ITEM_DETAILS WHERE ITEM_DETAILS.OrderId = pgi.Id FOR JSON AUTO)
+                    		)
+                    	), '[]') AS ItemDetails,
+                    	ISNULL((
+                    		SELECT JSON_QUERY((
+                    			SELECT * FROM DELIVERY_DETAILS WHERE DELIVERY_DETAILS.OrderId = pgi.Id FOR JSON AUTO)
+                    		)
+                    	), '[]') AS DeliveryDetails,
+                    	ISNULL((
+                    		SELECT JSON_QUERY((
+                    			SELECT * FROM TRANSPOTER_DETAILS WHERE TRANSPOTER_DETAILS.OrderId = pgi.Id FOR JSON AUTO)
+                    		)
+                    	), '[]') AS TranspoterDetails
+                    FROM
+                    	tbl_PurchaseOrderGeneralDetails AS pgi
+                    WHERE
+                    	CONVERT(DATE, pgi.LoadingDate) >= CONVERT(DATE, @Fromdate)
+                    	AND
+                    	CONVERT(DATE, pgi.LoadingDate) <= CONVERT(DATE, @Todate);
+                    `
+                );
+            
+            const result = await request;
+
+            if (result.recordset.length > 0) {
+                const extractedData = result.recordset.map(o => ({
+                    ...o,
+                    ItemDetails: JSON.parse(o?.ItemDetails),
+                    DeliveryDetails: JSON.parse(o?.DeliveryDetails),
+                    TranspoterDetails: JSON.parse(o?.TranspoterDetails)
+                }))
+                dataFound(res, extractedData);
+            } else {
+                noData(res);
+            }
+        } catch (e) {
+            servError(e, res);
+        }
+    }
+
     const createPurchaseOrder = async (req, res) => {
         
         const OrderDetails = req.body.OrderDetails ?? {};
@@ -55,12 +157,12 @@ const PurchaseOrderDataEntry = () => {
 
             const OrderId = OrderDetailsInsert?.recordset[0]?.OrderId;
 
-            for (let i = 1; i <= OrderItems.length; i++) {
+            for (let i = 0; i < OrderItems.length; i++) {
 
                 const Items = OrderItems[i];
 
                 const OrderItemsInsert = await new sql.Request(transaction)
-                    .input('Sno', i)
+                    .input('Sno', i + 1)
                     .input('OrderId', OrderId)
                     .input('ItemId', Items?.ItemId)
                     .input('ItemName', Items?.ItemName)
@@ -83,15 +185,16 @@ const PurchaseOrderDataEntry = () => {
                 }
             }
 
-            for (let i = 1; i <= DelivdryDetails.length; i++) {
+            for (let i = 0; i < DelivdryDetails.length; i++) {
 
                 const DeliveryInfo = DelivdryDetails[i];
 
                 const DeliveryDetailsInsert = await new sql.Request(transaction)
-                    .input('Sno', i)
+                    .input('Sno', i + 1)
                     .input('OrderId', OrderId)
                     .input('Location', DeliveryInfo?.Location)
                     .input('ArrivalDate', DeliveryInfo?.ArrivalDate)
+                    .input('ItemId', DeliveryInfo?.ItemId)
                     .input('ItemName', DeliveryInfo?.ItemName)
                     .input('Concern', DeliveryInfo?.Concern)
                     .input('BillNo', DeliveryInfo?.BillNo)
@@ -104,10 +207,10 @@ const PurchaseOrderDataEntry = () => {
                     .input('CreatedBy', DeliveryInfo?.CreatedBy)
                     .query(`
                         INSERT INTO tbl_PurchaseOrderDeliveryDetails (
-                            Sno, OrderId, Location, ArrivalDate, ItemName, Concern, BillNo, BillDate, Quantity, 
+                            Sno, OrderId, Location, ArrivalDate, ItemId, ItemName, Concern, BillNo, BillDate, Quantity, 
                             Weight, Units, BatchLocation, PendingQuantity, CreatedBy
                         ) VALUES (
-                            @Sno, @OrderId, @Location, @ArrivalDate, @ItemName, @Concern, @BillNo, @BillDate, @Quantity, 
+                            @Sno, @OrderId, @Location, @ArrivalDate, @ItemId, @ItemName, @Concern, @BillNo, @BillDate, @Quantity, 
                             @Weight, @Units, @BatchLocation, @PendingQuantity, @CreatedBy
                         );`
                     );
@@ -117,7 +220,7 @@ const PurchaseOrderDataEntry = () => {
                 }
             }
 
-            for (let i = 1; i <= TranspoterDetails.length; i++) {
+            for (let i = 0; i < TranspoterDetails.length; i++) {
 
                 const TranspoterInfo = TranspoterDetails[i];
 
@@ -128,17 +231,17 @@ const PurchaseOrderDataEntry = () => {
                     .input('Unloading_Load', TranspoterInfo?.Unloading_Load)
                     .input('Unloading_Empty', TranspoterInfo?.Unloading_Empty)
                     .input('EX_SH', TranspoterInfo?.EX_SH)
-                    .input('DrinverName', TranspoterInfo?.DrinverName)
+                    .input('DriverName', TranspoterInfo?.DriverName)
                     .input('VehicleNo', TranspoterInfo?.VehicleNo)
                     .input('PhoneNumber', TranspoterInfo?.PhoneNumber)
                     .input('CreatedBy', TranspoterInfo?.CreatedBy)
                     .query(`
                         INSERT INTO tbl_PurchaseOrderTranspoterDetails (
                             OrderId, Loading_Load, Loading_Empty, Unloading_Load, Unloading_Empty, 
-                            EX_SH, DrinverName, VehicleNo, PhoneNumber, CreatedBy
+                            EX_SH, DriverName, VehicleNo, PhoneNumber, CreatedBy
                         ) VALUES (
                             @OrderId, @Loading_Load, @Loading_Empty, @Unloading_Load, @Unloading_Empty, 
-                            @EX_SH, @DrinverName, @VehicleNo, @PhoneNumber, @CreatedBy
+                            @EX_SH, @DriverName, @VehicleNo, @PhoneNumber, @CreatedBy
                         )
                         `);
 
@@ -151,6 +254,9 @@ const PurchaseOrderDataEntry = () => {
             return success(res, 'Order Created')
 
         } catch (e) {
+            if (transaction._aborted === false) {
+                await transaction.rollback();
+            }
             servError(e, res);
         }
     }
@@ -210,7 +316,7 @@ const PurchaseOrderDataEntry = () => {
                 const item = OrderItems[i];
     
                 await new sql.Request(transaction)
-                    .input('Sno', i + 1)
+                    .input('Sno', i + 1 + 1)
                     .input('OrderId', OrderId)
                     .input('ItemId', item?.ItemId)
                     .input('ItemName', item?.ItemName)
@@ -329,6 +435,7 @@ const PurchaseOrderDataEntry = () => {
     
 
     return {
+        getPurchaseOrder,
         createPurchaseOrder,
         updatePurchaseOrder
     }

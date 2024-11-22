@@ -128,6 +128,8 @@ const sfProductController = () => {
             	    ON pg.Pro_Group_Id = p.Product_Group
                     LEFT JOIN UOM AS u
                     ON u.Unit_Id = p.UOM_Id
+                WHERE
+                    p.IS_Sold = @IS_Sold
             )
             SELECT 
                 g.*,
@@ -143,9 +145,7 @@ const sfProductController = () => {
             FROM
                 tbl_Product_Group AS g
             WHERE
-                g.Pro_Group_Id != 0
-                AND
-                IS_Sold = @IS_Sold 
+                g.Pro_Group_Id != 0 
             ORDER BY 
                 g.Pro_Group_Id`;
 

@@ -68,6 +68,7 @@ dataEntryRouter.put('/dataEntryAttendance', attendance.updateAttendance)
 
 
 // Purchase Order
+dataEntryRouter.get('/purchaseOrderEntry', purchaseOrder.getPurchaseOrder)
 dataEntryRouter.post('/purchaseOrderEntry', purchaseOrder.createPurchaseOrder)
 dataEntryRouter.put('/purchaseOrderEntry', purchaseOrder.updatePurchaseOrder)
 
