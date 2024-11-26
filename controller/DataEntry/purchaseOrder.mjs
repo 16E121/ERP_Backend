@@ -87,7 +87,7 @@ const PurchaseOrderDataEntry = () => {
                     	CONVERT(DATE, pgi.LoadingDate) <= CONVERT(DATE, @Todate);
                     `
                 );
-            
+
             const result = await request;
 
             if (result.recordset.length > 0) {
@@ -107,7 +107,7 @@ const PurchaseOrderDataEntry = () => {
     }
 
     const createPurchaseOrder = async (req, res) => {
-        
+
         const OrderDetails = req.body.OrderDetails ?? {};
         const {
             LoadingDate = '',
@@ -268,7 +268,7 @@ const PurchaseOrderDataEntry = () => {
             DelivdryDetails = [],
             TranspoterDetails = []
         } = req.body;
-    
+
         const {
             OrderId = '',
             LoadingDate = '',
@@ -281,12 +281,12 @@ const PurchaseOrderDataEntry = () => {
             Remarks = '',
             CreatedBy = ''
         } = OrderDetails;
-    
+
         const transaction = new sql.Transaction();
-    
+
         try {
             await transaction.begin();
-    
+
             // Update Order General Details
             const updateOrderDetails = await new sql.Request(transaction)
                 .input('OrderId', OrderId)
@@ -307,16 +307,24 @@ const PurchaseOrderDataEntry = () => {
                         Remarks = @Remarks, CreatedBy = @CreatedBy
                     WHERE Id = @OrderId
                 `);
-    
+
             if (updateOrderDetails.rowsAffected[0] === 0) {
                 throw new Error('Failed to update order details');
             }
-    
+
+            await new sql.Request(transaction)
+                .input('OrderId', OrderId)
+                .query(`
+                    DELETE FROM tbl_PurchaseOrderItemDetails WHERE OrderId = @OrderId;
+                    DELETE FROM tbl_PurchaseOrderDeliveryDetails WHERE OrderId = @OrderId;
+                    DELETE FROM tbl_PurchaseOrderTranspoterDetails WHERE OrderId = @OrderId;
+                `);
+
             for (let i = 0; i < OrderItems.length; i++) {
                 const item = OrderItems[i];
-    
-                await new sql.Request(transaction)
-                    .input('Sno', i + 1 + 1)
+
+                const result = await new sql.Request(transaction)
+                    .input('Sno', i)
                     .input('OrderId', OrderId)
                     .input('ItemId', item?.ItemId)
                     .input('ItemName', item?.ItemName)
@@ -327,27 +335,23 @@ const PurchaseOrderDataEntry = () => {
                     .input('Discount', item?.Discount)
                     .input('QualityCondition', item?.QualityCondition)
                     .query(`
-                        MERGE tbl_PurchaseOrderItemDetails AS target
-                        USING (VALUES (@Sno, @OrderId, @ItemId)) AS source (Sno, OrderId, ItemId)
-                        ON target.OrderId = source.OrderId AND target.ItemId = source.ItemId
-                        WHEN MATCHED THEN 
-                            UPDATE SET 
-                                Weight = @Weight, Units = @Units, Rate = @Rate, 
-                                DeliveryLocation = @DeliveryLocation, Discount = @Discount, 
-                                QualityCondition = @QualityCondition
-                        WHEN NOT MATCHED THEN
-                            INSERT (Sno, OrderId, ItemId, ItemName, Weight, Rate, DeliveryLocation, Discount, QualityCondition)
-                            VALUES (@Sno, @OrderId, @ItemId, @ItemName, @Weight, @Rate, @DeliveryLocation, @Discount, @QualityCondition)
-                        WHEN NOT MATCHED BY SOURCE AND target.OrderId = @OrderId THEN
-                            DELETE;
+                        INSERT INTO tbl_PurchaseOrderItemDetails (
+                            Sno, OrderId, ItemId, ItemName, Weight, Rate, DeliveryLocation, Discount, QualityCondition
+                        ) VALUES (
+                            @Sno, @OrderId, @ItemId, @ItemName, @Weight, @Rate, @DeliveryLocation, @Discount, @QualityCondition
+                        )
                     `);
+
+                if (result.rowsAffected[0] == 0) {
+                    throw new Error('Failed to update Item Details')
+                }
             }
-    
+
             // Update or Insert Delivery Details
             for (let i = 0; i < DelivdryDetails.length; i++) {
                 const delivery = DelivdryDetails[i];
-    
-                await new sql.Request(transaction)
+
+                const result = await new sql.Request(transaction)
                     .input('Sno', i + 1)
                     .input('OrderId', OrderId)
                     .input('Id', delivery?.Id)
@@ -364,34 +368,25 @@ const PurchaseOrderDataEntry = () => {
                     .input('PendingQuantity', delivery?.PendingQuantity)
                     .input('CreatedBy', delivery?.CreatedBy)
                     .query(`
-                        MERGE tbl_PurchaseOrderDeliveryDetails AS target
-                        USING (VALUES (@Id, @OrderId)) AS source (Id, OrderId)
-                        ON target.OrderId = source.OrderId AND target.Id = source.Id
-                        WHEN MATCHED THEN 
-                            UPDATE SET 
-                                Location = @Location, ArrivalDate = @ArrivalDate, 
-                                ItemName = @ItemName, Concern = @Concern, BillNo = @BillNo,
-                                BillDate = @BillDate, Quantity = @Quantity, Weight = @Weight, 
-                                Units = @Units, BatchLocation = @BatchLocation, 
-                                PendingQuantity = @PendingQuantity
-                        WHEN NOT MATCHED THEN
-                            INSERT (
-                                Sno, OrderId, Location, ArrivalDate, ItemName, Concern, BillNo, BillDate, 
-                                Quantity, Weight, Units, BatchLocation, PendingQuantity, CreatedBy
-                            ) VALUES (
-                                @Sno, @OrderId, @Location, @ArrivalDate, @ItemName, @Concern, @BillNo, @BillDate,
-                                @Quantity, @Weight, @Units, @BatchLocation, @PendingQuantity, @CreatedBy
-                            ) 
-                        WHEN NOT MATCHED BY SOURCE AND target.OrderId = @OrderId THEN
-                            DELETE;
+                        INSERT INTO tbl_PurchaseOrderDeliveryDetails (
+                            Sno, OrderId, Location, ArrivalDate, ItemName, Concern, BillNo, BillDate, 
+                            Quantity, Weight, Units, BatchLocation, PendingQuantity, CreatedBy
+                        ) VALUES (
+                            @Sno, @OrderId, @Location, @ArrivalDate, @ItemName, @Concern, @BillNo, @BillDate,
+                            @Quantity, @Weight, @Units, @BatchLocation, @PendingQuantity, @CreatedBy
+                        )
                     `);
+
+                if (result.rowsAffected[0] == 0) {
+                    throw new Error('Failed to update Delivery Details')
+                }
             }
-    
+
             // Update or Insert Transporter Details
             for (let i = 0; i < TranspoterDetails.length; i++) {
                 const transporter = TranspoterDetails[i];
-    
-                await new sql.Request(transaction)
+
+                const result = await new sql.Request(transaction)
                     .input('OrderId', OrderId)
                     .input('Id', transporter?.Id)
                     .input('Loading_Load', transporter?.Loading_Load)
@@ -399,45 +394,202 @@ const PurchaseOrderDataEntry = () => {
                     .input('Unloading_Load', transporter?.Unloading_Load)
                     .input('Unloading_Empty', transporter?.Unloading_Empty)
                     .input('EX_SH', transporter?.EX_SH)
-                    .input('DrinverName', transporter?.DrinverName)
+                    .input('DriverName', transporter?.DriverName)
                     .input('VehicleNo', transporter?.VehicleNo)
                     .input('PhoneNumber', transporter?.PhoneNumber)
                     .input('CreatedBy', transporter?.CreatedBy)
                     .query(`
-                        MERGE tbl_PurchaseOrderTranspoterDetails AS target
-                        USING (VALUES (@OrderId, @Id)) AS source (OrderId, Id)
-                        ON target.OrderId = source.OrderId AND target.Id = source.Id
-                        WHEN MATCHED THEN 
-                            UPDATE SET 
-                                Loading_Load = @Loading_Load, Loading_Empty = @Loading_Empty, 
-                                Unloading_Load = @Unloading_Load, Unloading_Empty = @Unloading_Empty, 
-                                EX_SH = @EX_SH, DrinverName = @DrinverName, PhoneNumber = @PhoneNumber
-                        WHEN NOT MATCHED THEN
-                            INSERT (
-                                OrderId, Loading_Load, Loading_Empty, Unloading_Load, Unloading_Empty, EX_SH, 
-                                DrinverName, VehicleNo, PhoneNumber, CreatedBy
-                            ) VALUES (
-                                @OrderId, @Loading_Load, @Loading_Empty, @Unloading_Load, @Unloading_Empty, @EX_SH, 
-                                @DrinverName, @VehicleNo, @PhoneNumber, @CreatedBy
-                            );
-                        WHEN NOT MATCHED BY SOURCE AND target.OrderId = @OrderId THEN
-                            DELETE;
+                        INSERT INTO tbl_PurchaseOrderTranspoterDetails (
+                            OrderId, Loading_Load, Loading_Empty, Unloading_Load, Unloading_Empty, EX_SH, 
+                            DriverName, VehicleNo, PhoneNumber, CreatedBy
+                        ) VALUES (
+                            @OrderId, @Loading_Load, @Loading_Empty, @Unloading_Load, @Unloading_Empty, @EX_SH, 
+                            @DriverName, @VehicleNo, @PhoneNumber, @CreatedBy
+                        );
                     `);
+
+                if (result.rowsAffected[0] == 0) {
+                    throw new Error('Failed to update Transporter details')
+                }
             }
-    
+
             await transaction.commit();
             return success(res, 'Order Updated Successfully');
         } catch (e) {
-            await transaction.rollback();
+            if (transaction._aborted === false) {
+                await transaction.rollback();
+            }
             servError(e, res);
         }
     };
-    
+
+    const updateArrivalDetails = async (req, res) => {
+        const { OrderId, DelivdryDetails, TranspoterDetails } = req.body;
+
+        if (!OrderId) {
+            return invalidInput(res, 'OrderId is required');
+        }
+
+        const transaction = new sql.Transaction();
+
+        try {
+            const checkIfOrderIdExist = await new sql.Request()
+                .input('OrderId', OrderId)
+                .query(`SELECT COUNT(Id) AS Orders FROM tbl_PurchaseOrderGeneralDetails WHERE Id = @OrderId;`);
+
+            if (checkIfOrderIdExist.recordset[0].Orders === 0) {
+                return failed(res, 'Order Id is not matched');
+            }
+
+            await transaction.begin();
+
+            await new sql.Request(transaction)
+                .input('OrderId', OrderId)
+                .query(`
+                    DELETE FROM tbl_PurchaseOrderDeliveryDetails WHERE OrderId = @OrderId;
+                    DELETE FROM tbl_PurchaseOrderTranspoterDetails WHERE OrderId = @OrderId;
+                `);
+
+            // Update or Insert Delivery Details
+            for (let i = 0; i < DelivdryDetails.length; i++) {
+                const delivery = DelivdryDetails[i];
+
+                const result = await new sql.Request(transaction)
+                    .input('Sno', i + 1)
+                    .input('OrderId', OrderId)
+                    .input('Id', delivery?.Id)
+                    .input('Location', delivery?.Location)
+                    .input('ArrivalDate', delivery?.ArrivalDate)
+                    .input('ItemName', delivery?.ItemName)
+                    .input('Concern', delivery?.Concern)
+                    .input('BillNo', delivery?.BillNo)
+                    .input('BillDate', delivery?.BillDate)
+                    .input('Quantity', delivery?.Quantity)
+                    .input('Weight', delivery?.Weight)
+                    .input('Units', delivery?.Units)
+                    .input('BatchLocation', delivery?.BatchLocation)
+                    .input('PendingQuantity', delivery?.PendingQuantity)
+                    .input('CreatedBy', delivery?.CreatedBy)
+                    .query(`
+                        INSERT INTO tbl_PurchaseOrderDeliveryDetails (
+                            Sno, OrderId, Location, ArrivalDate, ItemName, Concern, BillNo, BillDate, 
+                            Quantity, Weight, Units, BatchLocation, PendingQuantity, CreatedBy
+                        ) VALUES (
+                            @Sno, @OrderId, @Location, @ArrivalDate, @ItemName, @Concern, @BillNo, @BillDate,
+                            @Quantity, @Weight, @Units, @BatchLocation, @PendingQuantity, @CreatedBy
+                        )
+                    `);
+
+                if (result.rowsAffected[0] == 0) {
+                    throw new Error('Failed to update Delivery Details')
+                }
+            }
+
+            // Update or Insert Transporter Details
+            for (let i = 0; i < TranspoterDetails.length; i++) {
+                const transporter = TranspoterDetails[i];
+
+                const result = await new sql.Request(transaction)
+                    .input('OrderId', OrderId)
+                    .input('Id', transporter?.Id)
+                    .input('Loading_Load', transporter?.Loading_Load)
+                    .input('Loading_Empty', transporter?.Loading_Empty)
+                    .input('Unloading_Load', transporter?.Unloading_Load)
+                    .input('Unloading_Empty', transporter?.Unloading_Empty)
+                    .input('EX_SH', transporter?.EX_SH)
+                    .input('DriverName', transporter?.DriverName)
+                    .input('VehicleNo', transporter?.VehicleNo)
+                    .input('PhoneNumber', transporter?.PhoneNumber)
+                    .input('CreatedBy', transporter?.CreatedBy)
+                    .query(`
+                        INSERT INTO tbl_PurchaseOrderTranspoterDetails (
+                            OrderId, Loading_Load, Loading_Empty, Unloading_Load, Unloading_Empty, EX_SH, 
+                            DriverName, VehicleNo, PhoneNumber, CreatedBy
+                        ) VALUES (
+                            @OrderId, @Loading_Load, @Loading_Empty, @Unloading_Load, @Unloading_Empty, @EX_SH, 
+                            @DriverName, @VehicleNo, @PhoneNumber, @CreatedBy
+                        );
+                    `);
+
+                if (result.rowsAffected[0] == 0) {
+                    throw new Error('Failed to update Transporter details')
+                }
+            }
+
+            await transaction.commit();
+            success(res, 'Arrival Details Saved');
+        } catch (e) {
+            if (transaction._aborted === false) {
+                await transaction.rollback();
+            }
+            servError(e, res);
+        }
+    };
+
+    // const getPurchaseDetailsDropdown = async (req, res) => {
+    //     const Fromdate = ISOString(req?.query?.Fromdate);
+    //     const Todate = ISOString(req?.query?.Todate);
+    //     const { ItemId, OrderId } = req.query;
+
+    //     try {
+
+    //         let query = `
+    //             WITH ITEM_DETAILS AS (
+    //             	SELECT 
+    //             		*
+    //             	FROM
+    //             		tbl_PurchaseOrderItemDetails
+    //             	WHERE
+    //             		OrderId IN (
+    //             			SELECT 
+    //             				pgi.Id
+    //             			FROM
+    //             				tbl_PurchaseOrderGeneralDetails AS pgi
+    //             			WHERE
+    //             				CONVERT(DATE, pgi.LoadingDate) >= CONVERT(DATE, @Fromdate)
+    //             				AND
+    //             				CONVERT(DATE, pgi.LoadingDate) <= CONVERT(DATE, @Todate)
+    //                             AND
+    //                             pgi.ItemId = @ItemId
+    //             		)
+    //             )
+    //             SELECT 
+    //             	pgi.*,
+    //             	ISNULL((
+    //             		SELECT JSON_QUERY((
+    //             			SELECT * FROM ITEM_DETAILS WHERE ITEM_DETAILS.OrderId = pgi.Id FOR JSON AUTO)
+    //             		)
+    //             	), '[]') AS ItemDetails
+    //             FROM
+    //             	tbl_PurchaseOrderGeneralDetails AS pgi
+    //             WHERE
+    //             	CONVERT(DATE, pgi.LoadingDate) >= CONVERT(DATE, @Fromdate)
+    //             	AND
+    //             	CONVERT(DATE, pgi.LoadingDate) <= CONVERT(DATE, @Todate)
+    //         `;
+
+    //         if (OrderId) {
+
+    //         }
+
+    //         const request = new sql.Request()
+    //             .input('Fromdate', Fromdate)
+    //             .input('Todate', Todate)
+    //             .input('ItemId', ItemId)
+    //             .input('OrderId', OrderId)
+    //             .query(query);
+
+    //         const result = await request;
+    //     } catch (e) {
+    //         servError(e, res);
+    //     }
+    // }
 
     return {
         getPurchaseOrder,
         createPurchaseOrder,
-        updatePurchaseOrder
+        updatePurchaseOrder,
+        updateArrivalDetails,
     }
 }
 
