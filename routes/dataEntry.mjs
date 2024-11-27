@@ -71,6 +71,7 @@ dataEntryRouter.put('/dataEntryAttendance', attendance.updateAttendance)
 dataEntryRouter.get('/purchaseOrderEntry', purchaseOrder.getPurchaseOrder)
 dataEntryRouter.post('/purchaseOrderEntry', purchaseOrder.createPurchaseOrder)
 dataEntryRouter.put('/purchaseOrderEntry', purchaseOrder.updatePurchaseOrder)
+dataEntryRouter.delete('/purchaseOrderEntry', purchaseOrder.deleteOrderPermanantly);
 dataEntryRouter.put('/purchaseOrderEntry/ArrivalUpdate', purchaseOrder.updateArrivalDetails);
 
 

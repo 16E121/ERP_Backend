@@ -1,6 +1,6 @@
 import sql from 'mssql'
 import { servError, dataFound, noData, success, failed, invalidInput } from '../../res.mjs';
-import { extractHHMM, ISOString } from '../../helper_functions.mjs';
+import { checkIsNumber, extractHHMM, ISOString } from '../../helper_functions.mjs';
 
 const PurchaseOrderDataEntry = () => {
 
@@ -25,9 +25,9 @@ const PurchaseOrderDataEntry = () => {
                     			FROM
                     				tbl_PurchaseOrderGeneralDetails AS pgi
                     			WHERE
-                    				CONVERT(DATE, pgi.LoadingDate) >= CONVERT(DATE, @Fromdate)
+                    				CONVERT(DATE, pgi.TradeConfirmDate) >= CONVERT(DATE, @Fromdate)
                     				AND
-                    				CONVERT(DATE, pgi.LoadingDate) <= CONVERT(DATE, @Todate)
+                    				CONVERT(DATE, pgi.TradeConfirmDate) <= CONVERT(DATE, @Todate)
                     		)
                     ), DELIVERY_DETAILS AS (
                     	SELECT 
@@ -41,9 +41,9 @@ const PurchaseOrderDataEntry = () => {
                     			FROM
                     				tbl_PurchaseOrderGeneralDetails AS pgi
                     			WHERE
-                    				CONVERT(DATE, pgi.LoadingDate) >= CONVERT(DATE, @Fromdate)
+                    				CONVERT(DATE, pgi.TradeConfirmDate) >= CONVERT(DATE, @Fromdate)
                     				AND
-                    				CONVERT(DATE, pgi.LoadingDate) <= CONVERT(DATE, @Todate)
+                    				CONVERT(DATE, pgi.TradeConfirmDate) <= CONVERT(DATE, @Todate)
                     		)
                     ), TRANSPOTER_DETAILS AS (
                     	SELECT 
@@ -57,9 +57,9 @@ const PurchaseOrderDataEntry = () => {
                     			FROM
                     				tbl_PurchaseOrderGeneralDetails AS pgi
                     			WHERE
-                    				CONVERT(DATE, pgi.LoadingDate) >= CONVERT(DATE, @Fromdate)
+                    				CONVERT(DATE, pgi.TradeConfirmDate) >= CONVERT(DATE, @Fromdate)
                     				AND
-                    				CONVERT(DATE, pgi.LoadingDate) <= CONVERT(DATE, @Todate)
+                    				CONVERT(DATE, pgi.TradeConfirmDate) <= CONVERT(DATE, @Todate)
                     		)
                     )
                     SELECT 
@@ -82,9 +82,9 @@ const PurchaseOrderDataEntry = () => {
                     FROM
                     	tbl_PurchaseOrderGeneralDetails AS pgi
                     WHERE
-                    	CONVERT(DATE, pgi.LoadingDate) >= CONVERT(DATE, @Fromdate)
+                    	CONVERT(DATE, pgi.TradeConfirmDate) >= CONVERT(DATE, @Fromdate)
                     	AND
-                    	CONVERT(DATE, pgi.LoadingDate) <= CONVERT(DATE, @Todate);
+                    	CONVERT(DATE, pgi.TradeConfirmDate) <= CONVERT(DATE, @Todate);
                     `
                 );
 
@@ -170,8 +170,8 @@ const PurchaseOrderDataEntry = () => {
                     .input('Units', Items?.Units)
                     .input('Rate', Items?.Rate)
                     .input('DeliveryLocation', Items?.DeliveryLocation)
-                    .input('Discount', Items?.Discount)
-                    .input('QualityCondition', Items?.QualityCondition)
+                    .input('Discount', Items?.Discount ?? 0)
+                    .input('QualityCondition', Items?.QualityCondition ?? '')
                     .query(`
                         INSERT INTO tbl_PurchaseOrderItemDetails (
                             Sno, OrderId, ItemId, ItemName, Weight, Units, Rate, DeliveryLocation, Discount, QualityCondition
@@ -200,8 +200,8 @@ const PurchaseOrderDataEntry = () => {
                     .input('BillNo', DeliveryInfo?.BillNo)
                     .input('BillDate', DeliveryInfo?.BillDate)
                     .input('Quantity', DeliveryInfo?.Quantity)
-                    .input('Weight', DeliveryInfo?.Weight)
-                    .input('Units', DeliveryInfo?.Units)
+                    .input('Weight', DeliveryInfo?.Weight ?? 0)
+                    .input('Units', DeliveryInfo?.Units ?? '')
                     .input('BatchLocation', DeliveryInfo?.BatchLocation)
                     .input('PendingQuantity', DeliveryInfo?.PendingQuantity)
                     .input('CreatedBy', DeliveryInfo?.CreatedBy)
@@ -526,6 +526,38 @@ const PurchaseOrderDataEntry = () => {
         }
     };
 
+    const deleteOrderPermanantly = async (req, res) => {
+        const { OrderId } = req.body;
+        
+        if (!checkIsNumber(OrderId)) return invalidInput(res, 'OrderId is required');
+
+        const transaction = new sql.Transaction();
+
+        try {
+            await transaction.begin();
+
+            const request = new sql.Request(transaction)
+                .input('OrderId', OrderId)
+                .query(`
+                    DELETE FROM tbl_PurchaseOrderGeneralDetails WHERE Id = @OrderId;
+                    DELETE FROM tbl_PurchaseOrderItemDetails WHERE OrderId = @OrderId;
+                    DELETE FROM tbl_PurchaseOrderDeliveryDetails WHERE OrderId = @OrderId;
+                    DELETE FROM tbl_PurchaseOrderTranspoterDetails WHERE OrderId = @OrderId;`
+                );
+
+            const result = await request;
+
+            if (result.rowsAffected[0] === 0) throw new Error('Failed to delete Order');
+
+            await transaction.commit();
+
+            return success(res, 'Order Deleted!')
+
+        } catch (e) {
+            servError(e, res);
+        }
+    }
+
     // const getPurchaseDetailsDropdown = async (req, res) => {
     //     const Fromdate = ISOString(req?.query?.Fromdate);
     //     const Todate = ISOString(req?.query?.Todate);
@@ -590,6 +622,7 @@ const PurchaseOrderDataEntry = () => {
         createPurchaseOrder,
         updatePurchaseOrder,
         updateArrivalDetails,
+        deleteOrderPermanantly,
     }
 }
 
