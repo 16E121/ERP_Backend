@@ -441,12 +441,369 @@ const DashboardController = () => {
         }
     }
 
+
+
+
+
+    const getnewEmployeeAbstract = async (req, res) => {
+        const { UserId } = req.query;
+
+        if (isNaN(UserId)) {
+            return invalidInput(res, 'UserId is required')
+        }
+
+        try {
+            const query = `
+            SELECT 
+            	u.UserId,
+            	u.Name,
+            	u.UserTypeId,
+            	ut.UserType,
+            	u.BranchId,
+            	b.BranchName,
+
+            	        	COALESCE((
+            	SELECT 
+    DISTINCT td.Project_Id,
+    p.Project_Name
+FROM
+    tbl_Project_Employee AS td
+LEFT JOIN 
+    tbl_Project_Master AS p
+    ON p.Project_Id = td.Project_Id
+    WHERE
+    td.User_Id = @user
+            		FOR JSON PATH
+            	), '[]') AS Projects,
+
+            	COALESCE((
+            		SELECT 
+            			td.Task_Id,
+            			t.Task_Name,
+                        t.Task_Desc,
+            			td.AN_No,
+            			CONVERT(DATE, td.Est_Start_Dt) AS Est_Start_Dt,
+            			CONVERT(DATE, td.Est_End_Dt) AS Est_End_Dt,
+            			td.Sch_Time,
+            			td.EN_Time,
+            			td.Sch_Period,
+            			td.Timer_Based,
+
+                        COALESCE((
+							SELECT 
+								tpd.*,
+								tpdtpm.Paramet_Name,
+								tpdtpm.Paramet_Data_Type
+							FROM
+								tbl_Task_Paramet_DT AS tpd
+								LEFT JOIN tbl_Paramet_Master AS tpdtpm
+								ON tpdtpm.Paramet_Id = tpd.Param_Id
+							WHERE
+								tpd.Task_Id = td.Task_Id
+							FOR JSON PATH
+						), '[]') AS Task_Param,
+
+            			COALESCE((
+            				SELECT
+            					wk.Work_Id,
+            					wk.Work_Dt,
+            					wk.Work_Done,
+            					wk.Start_Time,
+            					wk.End_Time,
+            					wk.Tot_Minutes,
+            					wk.Work_Status,
+            					s.Status AS StatusGet,
+
+								COALESCE((
+            						SELECT 
+            							wp.Current_Value,
+            							wp.Default_Value,
+            							wp.Param_Id,
+            							pm.Paramet_Name,
+										pm.Paramet_Data_Type
+            						FROM
+            							tbl_Work_Paramet_DT as wp
+            							LEFT JOIN tbl_Paramet_Master AS pm
+            							ON pm.Paramet_Id = wp.Param_Id
+            						WHERE 
+            							wp.Work_Id = wk.Work_Id
+            						FOR JSON PATH
+								), '[]') AS Parameter_Details
+
+            				FROM
+            					tbl_Work_Master AS wk
+            					LEFT JOIN tbl_Status AS s
+            					ON s.Status_Id = wk.Work_Status
+            				WHERE
+            					wk.AN_No = td.AN_No
+            				FOR JSON PATH
+            			), '[]') AS Work_Details
+                    
+            		FROM
+            			tbl_Task_Details AS td
+            			LEFT JOIN tbl_Task AS t
+            			ON td.Task_Id = t.Task_Id
+            		WHERE
+            			td.Emp_Id = u.UserId
+            		FOR JSON PATH
+            	), '[]') AS AssignedTasks
+            
+            FROM
+            	tbl_Users AS u
+            	LEFT JOIN tbl_User_Type AS ut ON ut.Id = u.UserTypeId
+            	LEFT JOIN tbl_Branch_Master AS b ON b.BranchId = u.BranchId
+            WHERE
+            	u.UserId = @user
+            `;
+
+            const request = new sql.Request()
+            request.input('user', UserId)
+
+            const result = await request.query(query);
+
+            if (result.recordset.length > 0) {
+
+                const levelOneParsed = result.recordset.map(o => ({
+                    ...o,
+                    Projects: JSON.parse(o.Projects),
+                    AssignedTasks: JSON.parse(o.AssignedTasks),
+                    WorkDetails: o?.WorkDetails ? JSON.parse(o?.WorkDetails) : []
+                }))
+
+                const levelTwoParsed = levelOneParsed.map(o => ({
+                    ...o,
+
+                    AssignedTasks: o?.AssignedTasks?.map(ao => ({
+                        ...ao,
+                        Work_Details: JSON.parse(ao?.Work_Details),
+                        Task_Param: JSON.parse(ao?.Task_Param)
+                    })),
+
+                    WorkDetails: Array.isArray(o?.WorkDetails) ? o?.WorkDetails?.map(wo => ({
+                        ...wo,
+                        Parameter_Details: JSON.parse(wo?.Parameter_Details)
+                    })) : []
+
+                }))
+
+                const levelThreeParsed = levelTwoParsed.map(o => ({
+                    ...o,
+
+                    AssignedTasks: o?.AssignedTasks?.map(ao => ({
+                        ...ao,
+                        Work_Details: ao?.Work_Details?.map(wo => ({
+                            ...wo,
+                            Parameter_Details: JSON.parse(wo?.Parameter_Details)
+                        }))
+                    }))
+                }))
+
+                dataFound(res, levelThreeParsed)
+
+            } else {
+                noData(res)
+            }
+        } catch (e) {
+            servError(e, res)
+        }
+    }
+
+
+    const usergetnewEmployeeAbstract = async (req, res) => {
+        const { UserId } = req.query;
+    
+        // Validate the UserId
+        if (isNaN(UserId)) {
+            return invalidInput(res, 'UserId is required');
+        }
+    
+        try {
+            const query = `
+               SELECT 
+    p.Project_Id,
+    p.Project_Name,
+    p.Project_Desc,
+    p.Project_Head,
+    CONVERT(DATE, p.Est_Start_Dt) AS ProjectStartDate,
+    CONVERT(DATE, p.Est_End_Dt) AS ProjectEndDate,
+    s.Status AS ProjectStatus,
+    u.Name AS HeadName,
+
+    -- Employee involvement from Project_Employee table
+    (
+        SELECT 
+            pe.User_Id,
+            e.Name AS EmployeeName,
+            e.UserTypeId,
+            ut.UserType
+        FROM 
+            tbl_Project_Employee AS pe
+        LEFT JOIN 
+            tbl_Users AS e ON e.UserId = pe.User_Id
+        LEFT JOIN 
+            tbl_User_Type AS ut ON ut.Id = e.UserTypeId
+        WHERE 
+            pe.Project_Id = p.Project_Id
+        FOR JSON PATH
+    ) AS EmployeeInvolvement,
+
+    -- Task count for the employee in the project
+    (SELECT COUNT(*)
+        FROM tbl_Task_Details AS td
+        LEFT JOIN tbl_Task AS t ON td.Task_Id = t.Task_Id
+        WHERE td.Emp_Id = @user
+        AND td.Project_Id = p.Project_Id
+    ) AS TaskCount,
+
+    -- Task details assigned to the employee
+    COALESCE(( 
+        SELECT 
+            td.Task_Id,
+            t.Task_Name,
+            t.Task_Desc,
+            td.AN_No,
+            CONVERT(DATE, td.Est_Start_Dt) AS Est_Start_Dt,
+            CONVERT(DATE, td.Est_End_Dt) AS Est_End_Dt,
+            td.Sch_Time,
+            td.EN_Time,
+            td.Sch_Period,
+            td.Timer_Based,
+            COALESCE((
+                SELECT 
+                    tpd.*,
+                    tpdtpm.Paramet_Name,
+                    tpdtpm.Paramet_Data_Type
+                FROM
+                    tbl_Task_Paramet_DT AS tpd
+                LEFT JOIN 
+                    tbl_Paramet_Master AS tpdtpm ON tpdtpm.Paramet_Id = tpd.Param_Id
+                WHERE
+                    tpd.Task_Id = td.Task_Id
+                FOR JSON PATH
+            ), '[]') AS Task_Param,
+            COALESCE((
+                SELECT
+                    wk.Work_Id,
+                    wk.Work_Dt,
+                    wk.Work_Done,
+                    wk.Start_Time,
+                    wk.End_Time,
+                    wk.Tot_Minutes,
+                    wk.Work_Status,
+                    s.Status AS StatusGet,
+                    COALESCE((
+                        SELECT 
+                            wp.Current_Value,
+                            wp.Default_Value,
+                            wp.Param_Id,
+                            pm.Paramet_Name,
+                            pm.Paramet_Data_Type
+                        FROM
+                            tbl_Work_Paramet_DT AS wp
+                        LEFT JOIN 
+                            tbl_Paramet_Master AS pm ON pm.Paramet_Id = wp.Param_Id
+                        WHERE 
+                            wp.Work_Id = wk.Work_Id
+                        FOR JSON PATH
+                    ), '[]') AS Parameter_Details
+                FROM
+                    tbl_Work_Master AS wk
+                LEFT JOIN 
+                    tbl_Status AS s ON s.Status_Id = wk.Work_Status
+                WHERE
+                    wk.AN_No = td.AN_No AND wk.Emp_Id = @user -- Work details for the employee with UserId 85
+                FOR JSON PATH
+            ), '[]') AS Work_Details
+        FROM
+            tbl_Task_Details AS td
+        LEFT JOIN 
+            tbl_Task AS t ON td.Task_Id = t.Task_Id
+        WHERE
+            td.Emp_Id = @user -- Employee ID (replace 85 with the actual employee ID)
+            AND td.Project_Id = p.Project_Id
+        FOR JSON PATH
+    ), '[]') AS Tasks  -- Tasks assigned to the employee
+
+FROM
+    tbl_Project_Master AS p
+LEFT JOIN 
+    tbl_Status AS s ON s.Status_Id = p.Project_Status
+LEFT JOIN 
+    tbl_Users AS u ON u.UserId = p.Project_Head
+WHERE
+    p.Project_Id IN (
+        SELECT td.Project_Id
+        FROM tbl_Project_Employee td
+        WHERE td.User_Id = @user -- Replace with the actual employee ID
+    )`;
+    
+            const request = new sql.Request();
+            request.input('user', UserId);
+    
+            const result = await request.query(query);
+    
+            if (result.recordset.length > 0) {
+                // Function to safely parse JSON if exists
+                const safeParse = (data) => {
+                    try {
+                        return JSON.parse(data);
+                    } catch (error) {
+                        return [];
+                    }
+                };
+    
+                // Level 1 parsing
+                const levelOneParsed = result.recordset.map(o => ({
+                    ...o,
+                    Projects: safeParse(o.Projects),
+                    AssignedTasks: safeParse(o.AssignedTasks),
+                    WorkDetails: safeParse(o.WorkDetails)
+                }));
+    
+                // Level 2 parsing
+                const levelTwoParsed = levelOneParsed.map(o => ({
+                    ...o,
+                    AssignedTasks: o?.AssignedTasks?.map(ao => ({
+                        ...ao,
+                        Work_Details: safeParse(ao?.Work_Details),
+                        Task_Param: safeParse(ao?.Task_Param)
+                    })),
+                    WorkDetails: Array.isArray(o?.WorkDetails) ? o?.WorkDetails?.map(wo => ({
+                        ...wo,
+                        Parameter_Details: safeParse(wo?.Parameter_Details)
+                    })) : []
+                }));
+    
+                // Level 3 parsing
+                const levelThreeParsed = levelTwoParsed.map(o => ({
+                    ...o,
+                    AssignedTasks: o?.AssignedTasks?.map(ao => ({
+                        ...ao,
+                        Work_Details: ao?.Work_Details?.map(wo => ({
+                            ...wo,
+                            Parameter_Details: safeParse(wo?.Parameter_Details)
+                        }))
+                    }))
+                }));
+    
+                dataFound(res, levelThreeParsed);
+            } else {
+                noData(res);
+            }
+        } catch (e) {
+            servError(e, res);
+        }
+    };
+    
+
     return {
         getDashboardData,
         getTallyWorkDetails,
         getEmployeeAbstract,
         getERPDashboardData,
         getSalesInfo,
+        getnewEmployeeAbstract,
+        usergetnewEmployeeAbstract
     }
 }
 

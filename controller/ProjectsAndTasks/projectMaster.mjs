@@ -75,8 +75,13 @@ const projectController = () => {
         }
     }
 
+
+
+
+    
     const postProject = async (req, res) => {
         const { Project_Name, Project_Desc, Project_Head, Est_Start_Dt, Est_End_Dt, Project_Status, Entry_By, Company_id } = req.body;
+
     
         if (!Project_Name || !checkIsNumber(Company_id)) {
             return invalidInput(res, 'Project_Name and Company_id are required');
@@ -85,67 +90,66 @@ const projectController = () => {
         const transaction = new sql.Transaction();
         try {
             await transaction.begin();
-    
             const maxProjectIdRequest = await new sql.Request(transaction)
-                .query(`SELECT ISNULL(MAX(Project_Id), 0) + 1 AS NewProjectId FROM tbl_Project_Master`);
+            .query(`SELECT ISNULL(MAX(Project_Id), 0) + 1 AS NewProjectId FROM tbl_Project_Master`);
 
-    
-            const NewProjectId = maxProjectIdRequest.recordset[0].NewProjectId;
-  
+
+        const NewProjectId = maxProjectIdRequest.recordset[0].NewProjectId;
+
+            // Remove Project_Id from the insert query
             const request = await new sql.Request(transaction)
-            .input('Project_Id', sql.Int, NewProjectId)
-            .input('Project_Name', sql.VarChar, Project_Name)
-            .input('Project_Desc', sql.Text, Project_Desc)
-            .input('Company_id', sql.Int, Company_id)
-            .input('Project_Head', sql.VarChar, Project_Head)
-            .input('Est_Start_Dt', sql.Date, Est_Start_Dt)
-            .input('Est_End_Dt', sql.Date, Est_End_Dt)
-            .input('Project_Status', sql.VarChar, Project_Status)
-            .input('Entry_By', sql.VarChar, Entry_By)
-            .input('Entry_Date', sql.DateTime, new Date())
-            .input('Update_By', sql.Int, 1) 
-            .input('Update_Date', sql.DateTime, new Date()) 
-            .query(`
-                INSERT INTO tbl_Project_Master (
-                    Project_Id, Project_Name, Project_Desc, Company_id, Project_Head, Est_Start_Dt, Est_End_Dt, Project_Status, Entry_By, Entry_Date, Update_By, Update_Date
-                ) VALUES (
-                    @Project_Id, @Project_Name, @Project_Desc, @Company_id, @Project_Head, @Est_Start_Dt, @Est_End_Dt, @Project_Status, @Entry_By, @Entry_Date, @Update_By, @Update_Date
-                );
-            `);
-        
-    
-            if (request.rowsAffected[0] === 0) {
-                throw new Error('Failed to add project');
-            }
-    
-            // Insert into the Discussion Forum with the same Project_Id
-            const DiscussionTopicCreation = await new sql.Request(transaction)
-                .input('Topic', sql.VarChar, Project_Name)
-                .input('Description', sql.Text, 'The Discussion Forum for the project: ' + Project_Name)
+                .input('Project_Name', sql.VarChar, Project_Name)
+                .input('Project_Desc', sql.Text, Project_Desc)
                 .input('Company_id', sql.Int, Company_id)
-                .input('CreatedAt', sql.DateTime, new Date())
-                .input('IsActive', sql.Bit, 1)
-                .input('Project_Id', sql.Int, NewProjectId)
+                .input('Project_Head', sql.VarChar, Project_Head)
+                .input('Est_Start_Dt', sql.Date, Est_Start_Dt)
+                .input('Est_End_Dt', sql.Date, Est_End_Dt)
+                .input('Project_Status', sql.VarChar, Project_Status)
+                .input('Entry_By', sql.VarChar, Entry_By)
+                .input('Entry_Date', sql.DateTime, new Date())
+                .input('Update_By', sql.Int, 1)
+                .input('Update_Date', sql.DateTime, new Date())
                 .query(`
-                    INSERT INTO tbl_Discussion_Topics (
-                        Topic, Description, Company_id, CreatedAt, IsActive, Project_Id
+                    INSERT INTO tbl_Project_Master (
+                        Project_Name, Project_Desc, Company_id, Project_Head, Est_Start_Dt, Est_End_Dt, Project_Status, Entry_By, Entry_Date, Update_By, Update_Date
                     ) VALUES (
-                        @Topic, @Description, @Company_id, @CreatedAt, @IsActive, @Project_Id
-                    )
+                        @Project_Name, @Project_Desc, @Company_id, @Project_Head, @Est_Start_Dt, @Est_End_Dt, @Project_Status, @Entry_By, @Entry_Date, @Update_By, @Update_Date
+                    );
                 `);
-    
-            if (DiscussionTopicCreation.rowsAffected[0] === 0) {
-                throw new Error('Failed to create Discussion Forum');
+                if (request.rowsAffected[0] === 0) {
+                    throw new Error('Failed to add project');
+                }
+        
+                // Insert into the Discussion Forum with the same Project_Id
+                const DiscussionTopicCreation = await new sql.Request(transaction)
+                    .input('Topic', sql.VarChar, Project_Name)
+                    .input('Description', sql.Text, 'The Discussion Forum for the project: ' + Project_Name)
+                    .input('Company_id', sql.Int, Company_id)
+                    .input('CreatedAt', sql.DateTime, new Date())
+                    .input('IsActive', sql.Bit, 1)
+                    .input('Project_Id', sql.Int, NewProjectId)
+                    .query(`
+                        INSERT INTO tbl_Discussion_Topics (
+                            Topic, Description, Company_id, CreatedAt, IsActive, Project_Id
+                        ) VALUES (
+                            @Topic, @Description, @Company_id, @CreatedAt, @IsActive, @Project_Id
+                        )
+                    `);
+        
+                if (DiscussionTopicCreation.rowsAffected[0] === 0) {
+                    throw new Error('Failed to create Discussion Forum');
+                }
+        
+                await transaction.commit();
+                return success(res, 'Project and Discussion Forum created successfully');
+        
+            } catch (error) {
+                await transaction.rollback();
+                return servError(error, res);
             }
-    
-            await transaction.commit();
-            return success(res, 'Project and Discussion Forum created successfully');
-    
-        } catch (error) {
-            await transaction.rollback();
-            return servError(error, res);
-        }
-    };
+        };
+
+   
     
     const editProject = async (req, res) => {
         const { Project_Id, Project_Name, Project_Desc, Project_Head, Est_Start_Dt, Est_End_Dt, Project_Status, Entry_By } = req.body;
@@ -198,9 +202,9 @@ const projectController = () => {
                     WHERE Project_Id = @Project_Id
                 `);
 
-            if (updateDiscussionForumRequest.rowsAffected[0] === 0) {
-                throw new Error('Failed to update Discussion Forum');
-            }
+            // if (updateDiscussionForumRequest.rowsAffected[0] === 0) {
+            //     throw new Error('Failed to update Discussion Forum');
+            // }
 
             await transaction.commit();
             return success(res, 'Project and Discussion Forum updated successfully');
@@ -480,65 +484,82 @@ const projectController = () => {
         try {
             const request = new sql.Request()
                 .input('comp', Company_id)
-                .query( `                   SELECT 
-                                            p.Project_Id, 
-                                            p.Project_Name, 
-                                            p.Est_Start_Dt, 
-                                            p.Est_End_Dt,
-                                            COALESCE(ph.Name, 'NOT FOUND!') AS Project_Head,
-                                            COALESCE(eby.Name, 'NOT FOUND!') AS CreatedBy,
-                                            COALESCE(uby.Name, 'NOT FOUND!') AS UpdatedBy,
-                                            COALESCE(s.Status, 'NOT FOUND!') AS Status,
-                                            COALESCE(
-                                                (SELECT COUNT(Sch_Id) 
-                                                 FROM tbl_Project_Schedule 
-                                                 WHERE Project_Id = p.Project_Id 
-                                                 AND Sch_Del_Flag = 0), 0) AS SchedulesCount,
-                                            COALESCE(
-                                                (SELECT COUNT(Sch_Id) 
-                                                 FROM tbl_Project_Schedule 
-                                                 WHERE Project_Id = p.Project_Id 
-                                                 AND Sch_Del_Flag = 0 
-                                                 AND Sch_Status = 3), 0) AS SchedulesCompletedCount,
-                                           COALESCE((SELECT COUNT(t.Task_Id) 
-                                                                      FROM tbl_Project_Schedule AS s
-                                                                      JOIN tbl_Project_Sch_Task_DT AS t 
-                                                                      ON s.Sch_Id = t.Sch_Id
-                                                                      WHERE s.Project_Id = p.Project_Id
-                                                                      AND t.Sch_Project_Id = p.Project_Id
-                                                                      AND s.Sch_Del_Flag = 0
-                                        							   AND t.Sch_Type_Id NOT IN (0, 4, 5, 6)
-                                                                      AND t.Task_Sch_Del_Flag = 0), 0) AS TasksScheduled,
-                                          COALESCE(
-                                                (SELECT COUNT(DISTINCT CONCAT(wm.Sch_Id, wm.Project_Id, wm.Task_Id, wm.Work_Dt))
-                                                 FROM tbl_Work_Master wm
-                                                 WHERE wm.Project_Id = p.Project_Id 
-                                                 AND wm.Work_Status = 3), 
-                                            0) AS CompletedTasks,  
-                                        
-                                            COALESCE(
-                                                (SELECT COUNT(DISTINCT wm.Task_Levl_Id)
-                                                 FROM tbl_Work_Master wm
-                                                 WHERE wm.Project_Id = p.Project_Id), 
-                                            0) AS TasksProgressCount,
-                                            COALESCE(
-                                                (SELECT COUNT(DISTINCT User_Id)
-                                                 FROM tbl_Project_Employee
-                                                 WHERE Project_Id = p.Project_Id), 0) AS EmployeesInvolved,
-                                            COALESCE(
-                                                (SELECT COUNT(DISTINCT td.Task_Id)
-                                                 FROM tbl_Task_Details AS td
-                                                 WHERE td.Project_Id = p.Project_Id), 0) AS TotalTaskAssignments
-                                        FROM 
-                                            tbl_Project_Master AS p
-                                            LEFT JOIN tbl_Users AS ph ON ph.UserId = p.Project_Head
-                                            LEFT JOIN tbl_Users AS eby ON eby.UserId = p.Entry_By
-                                            LEFT JOIN tbl_Users AS uby ON uby.UserId = p.Update_By
-                                            LEFT JOIN tbl_Status AS s ON s.Status_Id = p.Project_Status
-                                        WHERE 
-                                            p.IsActive = 1
-                                            AND p.Project_Status NOT IN (4);`
-                                        
+                .query( ` SELECT 
+    p.Project_Id, 
+    p.Project_Name, 
+    p.Est_Start_Dt, 
+    p.Est_End_Dt,
+    p.Project_Desc,
+    p.Project_Status,
+	p.Project_Head  As Project_Head_Id,
+    s.Status, -- Assuming 'Status_Name' is the column storing the status name from tbl_Status
+    
+    -- Project Head details from tbl_Users
+    u.Name AS Project_Head       ,
+    -- Count of schedules
+    COALESCE((SELECT COUNT(Sch_Id) 
+              FROM tbl_Project_Schedule 
+              WHERE Project_Id = p.Project_Id 
+              AND Sch_Del_Flag = 0), 0) AS SchedulesCount,
+
+    -- Count of completed schedules
+    COALESCE((SELECT COUNT(Sch_Id) 
+              FROM tbl_Project_Schedule 
+              WHERE Project_Id = p.Project_Id 
+              AND Sch_Del_Flag = 0
+              AND Sch_Status = 3), 0) AS SchedulesCompletedCount,
+
+    -- Count of tasks scheduled
+    COALESCE((
+        SELECT COUNT(DISTINCT pt.Task_Id)  -- Count distinct tasks scheduled
+        FROM tbl_Project_Sch_Task_DT pt
+        WHERE pt.Sch_Project_Id = p.Project_Id
+        AND pt.Sch_Type_Id NOT IN (0, 4, 5, 6)  -- Exclude unwanted schedule types
+      
+    ), 0) AS TasksScheduled,
+
+    -- Count of completed tasks today
+    COALESCE((
+        SELECT COUNT(DISTINCT wm.Task_Id)
+        FROM tbl_Work_Master wm
+        WHERE wm.Project_Id = p.Project_Id
+          AND wm.Work_Status = 3
+          AND CONVERT(DATE, wm.Work_Dt) = CONVERT(DATE, GETDATE()) -- Filter for today's date
+    ), 0) AS CompletedTasks,
+
+    -- Count of tasks assigned to employees
+    COALESCE((
+        SELECT COUNT(DISTINCT Task_Levl_Id)
+        FROM tbl_Task_Details
+        WHERE Project_Id = p.Project_Id
+    ), 0) AS TasksAssignedToEmployee,
+
+    -- Count of tasks in progress from tbl_Work_Master
+    COALESCE((
+        SELECT COUNT(DISTINCT wm.Task_Id)
+        FROM tbl_Work_Master wm
+        WHERE wm.Project_Id = p.Project_Id
+    ), 0) AS TasksProgressCount,
+
+    -- Count of employees involved in tasks
+   COALESCE((
+        SELECT COUNT(DISTINCT td.User_Id)
+        FROM tbl_Project_Employee td
+        WHERE td.Project_Id = p.Project_Id
+    ), 0) AS EmployeesInvolved
+FROM 
+    tbl_Project_Master AS p
+LEFT JOIN 
+    tbl_Users AS u ON p.Project_Head = u.UserId 
+LEFT JOIN 
+    tbl_Status AS s ON p.Project_Status = s.Status_Id  
+WHERE 
+    p.Project_Status NOT IN (3, 4) 
+    AND p.Company_id =@comp
+
+
+
+`
 
                                 )
             // AND p.Company_id = @comp

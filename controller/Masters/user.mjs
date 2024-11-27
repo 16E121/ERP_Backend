@@ -462,15 +462,16 @@ const user = () => {
         try {
 
             const result = (await new sql.Request()
-                .input('Comp', Company_id)
+                .input('Comp', Company_id)  
                 .query(`
-                    SELECT 
+                 						  SELECT 
                         UserId, Name 
-                    FROM 
-                        tbl_Users 
-                    WHERE 
-                        UserTypeId = 3 
-                        AND UDel_Flag = 0 
+                         FROM 
+                          tbl_Users 
+                      WHERE 
+                          UserTypeId IN (1, 2, 0)
+                      	AND UDel_Flag=0;
+
                         `)
                         // AND Company_id = @comp
             ).recordset;
@@ -484,6 +485,40 @@ const user = () => {
             servError(e, res);
         }
     }
+
+
+
+    const employeeAllDropDown = async (req, res) => {
+        const { Company_id } = req.query;
+
+        if (!checkIsNumber(Company_id)) {
+            return invalidInput(res, 'Company_id is Required')
+        }
+
+        try {
+
+            const result = (await new sql.Request()
+                .input('Comp', Company_id)  
+                .query(` SELECT 
+                        UserId, Name 
+                    FROM 
+                        tbl_Users 
+                    WHERE UDel_Flag = 0 
+                        `)
+                        // AND Company_id = @comp
+            ).recordset;
+
+            if (result.length > 0) {
+                dataFound(res, result)
+            } else {
+                noData(res)
+            }
+        } catch (e) {
+            servError(e, res);
+        }
+    }
+
+
 
     const getSalesPersonDropdown = async (req, res) => {
         const { Company_id } = req.query;
@@ -638,6 +673,7 @@ const user = () => {
         getSalesPersonAndEmployeeDropdown,
         customUserGet,
         changePassword,
+        employeeAllDropDown
     }
 }
 

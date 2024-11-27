@@ -85,7 +85,7 @@ const EmployeeController = () => {
             branch, mobile, empname, designation, dob, doj,
             address1, address2, city, pincode, education,
             father, mother, spouse, gender, religion, salary, total_loan,
-            salary_advance, due_loan, enter_by, fingerPrintEmpId, Department_ID, createAsUser
+            salary_advance, due_loan, enter_by, fingerPrintEmpId, Department_ID, createAsUser,department,location
         } = req.body.data;
         let userId = '';
         let empcode = '';
@@ -171,15 +171,17 @@ const EmployeeController = () => {
                 .input('Due_Loan', due_loan)
                 .input('User_Mgt_Id', userId)
                 .input('Entry_By', enter_by)
+                .input('Department',department)
+                .input('Location',location)
                 .query(`
                     INSERT INTO tbl_Employee_Master (
                         Emp_Id, fingerPrintEmpId, Branch, Emp_Code, Emp_Name, Designation, DOB, DOJ, Department_ID, Address_1, Address_2, City,
                         Country, Pincode, Mobile_No, Education, Fathers_Name, Mothers_Name, Spouse_Name,
-                        Sex, Emp_Religion, Salary, Total_Loan, Salary_Advance, Due_Loan, User_Mgt_Id, Entry_By, Entry_Date
+                        Sex, Emp_Religion, Salary, Total_Loan, Salary_Advance, Due_Loan, User_Mgt_Id, Entry_By, Entry_Date,Department,location
                     ) VALUES(
                         @Emp_Id, @fingerPrintEmpId, @Branch, @Emp_Code, @Emp_Name, @Designation, @DOB, @DOJ, @Department_ID, @Address_1, @Address_2, @City,
                         @Country, @Pincode, @Mobile_No, @Education, @Fathers_Name, @Mothers_Name, @Spouse_Name,
-                        @Sex, @Emp_Religion, @Salary, @Total_Loan, @Salary_Advance, @Due_Loan, @User_Mgt_Id, @Entry_By, GETDATE()
+                        @Sex, @Emp_Religion, @Salary, @Total_Loan, @Salary_Advance, @Due_Loan, @User_Mgt_Id, @Entry_By, GETDATE(),@Department,@Location
                     ) `
                 )
 
@@ -200,7 +202,7 @@ const EmployeeController = () => {
             branch, mobile, empname, designation,
             address1, address2, city, pincode, education,
             father, mother, spouse, gender, religion, salary, total_loan,
-            salary_advance, due_loan, enter_by, fingerPrintEmpId, user_manage_id, Department_ID, createAsUser
+            salary_advance, due_loan, enter_by, fingerPrintEmpId, user_manage_id, Department_ID, createAsUser,department,location
         } = data;
         const dob = data.dob ? data.dob : null;
         const doj = data.doj ? data.doj : null;
@@ -276,6 +278,8 @@ const EmployeeController = () => {
                 .input('Salary', salary)
                 .input('Entry_By', enter_by)
                 .input('fingerPrintEmpId', fingerPrintEmpId)
+                .input('Department', department)
+                .input('Location', location)
                 .query(`
                     UPDATE 
                         tbl_Employee_Master 
@@ -302,7 +306,9 @@ const EmployeeController = () => {
                         Emp_Religion = @Emp_Religion, 
                         Salary = @Salary,
                         Entry_By = @Entry_By,
-                        fingerPrintEmpId = @fingerPrintEmpId
+                        fingerPrintEmpId = @fingerPrintEmpId,
+                        Department=@Department,
+                        Location=@location
                     WHERE 
                         Emp_Id = @Emp_Id`
                 )

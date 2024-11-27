@@ -35,6 +35,7 @@ MastersRouter.delete('/users', user.newDeleteUser);
 MastersRouter.get('/user/dropDown', user.userDropdown);
 MastersRouter.get('/users/customUsers', user.customUserGet);
 MastersRouter.get('/users/employee/dropDown', user.employeeDropDown);
+MastersRouter.get('/users/employee/employeeAllDropDown', user.employeeAllDropDown);
 MastersRouter.get('/users/employeeAndSalesPerson/dropDown', user.getSalesPersonAndEmployeeDropdown);
 MastersRouter.get('/users/salesPerson/dropDown', user.getSalesPersonDropdown);
 MastersRouter.put('/users/changePassword', user.changePassword);
@@ -107,6 +108,7 @@ MastersRouter.post('/employeedetails/assignTask',employeesTasks.assignTaskForEmp
 MastersRouter.put('/employeedetails/updateTask',employeesTasks.modifyTaskAssignedForEmployee)
 MastersRouter.get('/employeedetails/assignedTaskDetails',employeesTasks.getEmployeeAssignedInTheTask)
 MastersRouter.delete('/employeedetails/deleteTask',employeesTasks.deleteAssignedTaskDetails)
+
 
 MastersRouter.delete('/employeedetails/deleteTask',employeesTasks.deleteAssignedTaskDetails)
 MastersRouter.get('/employeedetails/selectedTaskDetails',employeesTasks.selectedTaskDetails)
