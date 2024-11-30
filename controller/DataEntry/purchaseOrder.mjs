@@ -1,6 +1,6 @@
 import sql from 'mssql'
 import { servError, dataFound, noData, success, failed, invalidInput } from '../../res.mjs';
-import { checkIsNumber, extractHHMM, ISOString } from '../../helper_functions.mjs';
+import { checkIsNumber, ISOString } from '../../helper_functions.mjs';
 
 const PurchaseOrderDataEntry = () => {
 
@@ -118,6 +118,7 @@ const PurchaseOrderDataEntry = () => {
             PartyAddress = '',
             PaymentCondition = '',
             Remarks = '',
+            OrderStatus = '',
             CreatedBy = ''
         } = OrderDetails;
 
@@ -140,12 +141,15 @@ const PurchaseOrderDataEntry = () => {
                 .input('PartyAddress', PartyAddress)
                 .input('PaymentCondition', PaymentCondition)
                 .input('Remarks', Remarks)
+                .input('OrderStatus', OrderStatus)
                 .input('CreatedBy', CreatedBy)
                 .query(`
                     INSERT INTO tbl_PurchaseOrderGeneralDetails (
-                        LoadingDate, TradeConfirmDate, OwnerName, BrokerName, PartyName, PartyAddress, PaymentCondition, Remarks, CreatedBy
+                        LoadingDate, TradeConfirmDate, OwnerName, BrokerName, PartyName, 
+                        PartyAddress, PaymentCondition, Remarks, OrderStatus, CreatedBy
                     ) VALUES (
-                        @LoadingDate, @TradeConfirmDate, @OwnerName, @BrokerName, @PartyName, @PartyAddress, @PaymentCondition, @Remarks, @CreatedBy
+                        @LoadingDate, @TradeConfirmDate, @OwnerName, @BrokerName, @PartyName, 
+                        @PartyAddress, @PaymentCondition, @Remarks, @OrderStatus, @CreatedBy
                     );
                     
                     SELECT SCOPE_IDENTITY() AS OrderId;`
@@ -270,7 +274,7 @@ const PurchaseOrderDataEntry = () => {
         } = req.body;
 
         const {
-            OrderId = '',
+            Id = '',
             LoadingDate = '',
             TradeConfirmDate = '',
             OwnerName = '',
@@ -279,6 +283,7 @@ const PurchaseOrderDataEntry = () => {
             PartyAddress = '',
             PaymentCondition = '',
             Remarks = '',
+            OrderStatus = '',
             CreatedBy = ''
         } = OrderDetails;
 
@@ -289,7 +294,7 @@ const PurchaseOrderDataEntry = () => {
 
             // Update Order General Details
             const updateOrderDetails = await new sql.Request(transaction)
-                .input('OrderId', OrderId)
+                .input('OrderId', Id)
                 .input('LoadingDate', LoadingDate)
                 .input('TradeConfirmDate', TradeConfirmDate)
                 .input('OwnerName', OwnerName)
@@ -298,13 +303,14 @@ const PurchaseOrderDataEntry = () => {
                 .input('PartyAddress', PartyAddress)
                 .input('PaymentCondition', PaymentCondition)
                 .input('Remarks', Remarks)
+                .input('OrderStatus', OrderStatus)
                 .input('CreatedBy', CreatedBy)
                 .query(`
                     UPDATE tbl_PurchaseOrderGeneralDetails
                     SET LoadingDate = @LoadingDate, TradeConfirmDate = @TradeConfirmDate, 
                         OwnerName = @OwnerName, BrokerName = @BrokerName, PartyName = @PartyName,
                         PartyAddress = @PartyAddress, PaymentCondition = @PaymentCondition, 
-                        Remarks = @Remarks, CreatedBy = @CreatedBy
+                        Remarks = @Remarks, OrderStatus = @OrderStatus, CreatedBy = @CreatedBy
                     WHERE Id = @OrderId
                 `);
 
@@ -313,7 +319,7 @@ const PurchaseOrderDataEntry = () => {
             }
 
             await new sql.Request(transaction)
-                .input('OrderId', OrderId)
+                .input('OrderId', Id)
                 .query(`
                     DELETE FROM tbl_PurchaseOrderItemDetails WHERE OrderId = @OrderId;
                     DELETE FROM tbl_PurchaseOrderDeliveryDetails WHERE OrderId = @OrderId;
@@ -325,7 +331,7 @@ const PurchaseOrderDataEntry = () => {
 
                 const result = await new sql.Request(transaction)
                     .input('Sno', i)
-                    .input('OrderId', OrderId)
+                    .input('OrderId', Id)
                     .input('ItemId', item?.ItemId)
                     .input('ItemName', item?.ItemName)
                     .input('Weight', item?.Weight)
@@ -336,9 +342,9 @@ const PurchaseOrderDataEntry = () => {
                     .input('QualityCondition', item?.QualityCondition)
                     .query(`
                         INSERT INTO tbl_PurchaseOrderItemDetails (
-                            Sno, OrderId, ItemId, ItemName, Weight, Rate, DeliveryLocation, Discount, QualityCondition
+                            Sno, OrderId, ItemId, ItemName, Weight, Units, Rate, DeliveryLocation, Discount, QualityCondition
                         ) VALUES (
-                            @Sno, @OrderId, @ItemId, @ItemName, @Weight, @Rate, @DeliveryLocation, @Discount, @QualityCondition
+                            @Sno, @OrderId, @ItemId, @ItemName, @Weight, @Units, @Rate, @DeliveryLocation, @Discount, @QualityCondition
                         )
                     `);
 
@@ -353,7 +359,7 @@ const PurchaseOrderDataEntry = () => {
 
                 const result = await new sql.Request(transaction)
                     .input('Sno', i + 1)
-                    .input('OrderId', OrderId)
+                    .input('OrderId', Id)
                     .input('Id', delivery?.Id)
                     .input('Location', delivery?.Location)
                     .input('ArrivalDate', delivery?.ArrivalDate)
@@ -387,7 +393,7 @@ const PurchaseOrderDataEntry = () => {
                 const transporter = TranspoterDetails[i];
 
                 const result = await new sql.Request(transaction)
-                    .input('OrderId', OrderId)
+                    .input('OrderId', Id)
                     .input('Id', transporter?.Id)
                     .input('Loading_Load', transporter?.Loading_Load)
                     .input('Loading_Empty', transporter?.Loading_Empty)

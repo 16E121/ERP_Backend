@@ -359,7 +359,6 @@ const ClosingStockControll = () => {
         }
     }
 
-
     const closeingStockUpdate = async (req, res) => {
         const { Company_Id, ST_Date, Retailer_Id, Narration, Created_by, Product_Stock_List, ST_Id } = req.body;
 
