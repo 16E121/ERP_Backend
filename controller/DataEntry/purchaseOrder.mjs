@@ -168,13 +168,13 @@ const PurchaseOrderDataEntry = () => {
                 const OrderItemsInsert = await new sql.Request(transaction)
                     .input('Sno', i + 1)
                     .input('OrderId', OrderId)
-                    .input('ItemId', Items?.ItemId)
+                    .input('ItemId', Items?.ItemId ?? '')
                     .input('ItemName', Items?.ItemName)
                     .input('Weight', Items?.Weight)
                     .input('Units', Items?.Units)
-                    .input('Rate', Items?.Rate)
+                    .input('Rate', Items?.Rate ?? 0)
                     .input('DeliveryLocation', Items?.DeliveryLocation)
-                    .input('Discount', Items?.Discount ?? 0)
+                    .input('Discount', Number(Items?.Discount))
                     .input('QualityCondition', Items?.QualityCondition ?? '')
                     .query(`
                         INSERT INTO tbl_PurchaseOrderItemDetails (
