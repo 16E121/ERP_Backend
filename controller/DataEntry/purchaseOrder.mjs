@@ -84,7 +84,8 @@ const PurchaseOrderDataEntry = () => {
                     WHERE
                     	CONVERT(DATE, pgi.TradeConfirmDate) >= CONVERT(DATE, @Fromdate)
                     	AND
-                    	CONVERT(DATE, pgi.TradeConfirmDate) <= CONVERT(DATE, @Todate);
+                    	CONVERT(DATE, pgi.TradeConfirmDate) <= CONVERT(DATE, @Todate)
+                    ORDER BY pgi.Id DESC;
                     `
                 );
 
@@ -162,96 +163,95 @@ const PurchaseOrderDataEntry = () => {
             const OrderId = OrderDetailsInsert?.recordset[0]?.OrderId;
 
             for (let i = 0; i < OrderItems.length; i++) {
+                const item = OrderItems[i];
 
-                const Items = OrderItems[i];
-
-                const OrderItemsInsert = await new sql.Request(transaction)
-                    .input('Sno', i + 1)
+                const result = await new sql.Request(transaction)
+                    .input('Sno', i)
                     .input('OrderId', OrderId)
-                    .input('ItemId', Items?.ItemId ?? '')
-                    .input('ItemName', Items?.ItemName)
-                    .input('Weight', Items?.Weight)
-                    .input('Units', Items?.Units)
-                    .input('Rate', Items?.Rate ?? 0)
-                    .input('DeliveryLocation', Items?.DeliveryLocation)
-                    .input('Discount', Number(Items?.Discount))
-                    .input('QualityCondition', Items?.QualityCondition ?? '')
+                    .input('ItemId', Number(item?.ItemId))
+                    .input('ItemName', item?.ItemName)
+                    .input('Weight', Number(item?.Weight))
+                    .input('Units', item?.Units)
+                    .input('Rate', Number(item?.Rate))
+                    .input('DeliveryLocation', item?.DeliveryLocation)
+                    .input('Discount', Number(item?.Discount))
+                    .input('QualityCondition', item?.QualityCondition)
                     .query(`
                         INSERT INTO tbl_PurchaseOrderItemDetails (
                             Sno, OrderId, ItemId, ItemName, Weight, Units, Rate, DeliveryLocation, Discount, QualityCondition
                         ) VALUES (
                             @Sno, @OrderId, @ItemId, @ItemName, @Weight, @Units, @Rate, @DeliveryLocation, @Discount, @QualityCondition
-                        ); `
-                    )
+                        )
+                    `);
 
-                if (OrderItemsInsert.rowsAffected[0] == 0) {
-                    throw new Error('Failed to insert Item Details')
+                if (result.rowsAffected[0] == 0) {
+                    throw new Error('Failed to update Item Details')
                 }
             }
 
             for (let i = 0; i < DelivdryDetails.length; i++) {
+                const delivery = DelivdryDetails[i];
 
-                const DeliveryInfo = DelivdryDetails[i];
-
-                const DeliveryDetailsInsert = await new sql.Request(transaction)
-                    .input('Sno', i + 1)
+                const result = await new sql.Request(transaction)
+                    .input('indexValue', Number(delivery?.indexValue))
                     .input('OrderId', OrderId)
-                    .input('TransporterIndex', DeliveryInfo?.TransporterIndex)
-                    .input('Location', DeliveryInfo?.Location)
-                    .input('ArrivalDate', DeliveryInfo?.ArrivalDate)
-                    .input('ItemId', DeliveryInfo?.ItemId)
-                    .input('ItemName', DeliveryInfo?.ItemName)
-                    .input('Concern', DeliveryInfo?.Concern)
-                    .input('BillNo', DeliveryInfo?.BillNo)
-                    .input('BillDate', DeliveryInfo?.BillDate)
-                    .input('Quantity', DeliveryInfo?.Quantity)
-                    .input('Weight', DeliveryInfo?.Weight ?? 0)
-                    .input('Units', DeliveryInfo?.Units ?? '')
-                    .input('BatchLocation', DeliveryInfo?.BatchLocation)
-                    .input('PendingQuantity', DeliveryInfo?.PendingQuantity)
-                    .input('CreatedBy', DeliveryInfo?.CreatedBy)
+                    .input('TransporterIndex', Number(delivery?.TransporterIndex))
+                    .input('Location', delivery?.Location)
+                    .input('ArrivalDate', delivery?.ArrivalDate)
+                    .input('ItemId', Number(delivery?.ItemId))
+                    .input('ItemName', delivery?.ItemName)
+                    .input('Concern', delivery?.Concern)
+                    .input('BillNo', delivery?.BillNo)
+                    .input('BillDate', delivery?.BillDate)
+                    .input('Quantity', Number(delivery?.Quantity))
+                    .input('Weight', Number(delivery?.Weight))
+                    .input('Units', delivery?.Units)
+                    .input('BatchLocation', delivery?.BatchLocation)
+                    .input('PendingQuantity', Number(delivery?.PendingQuantity))
+                    .input('CreatedBy', Number(delivery?.CreatedBy))
                     .query(`
                         INSERT INTO tbl_PurchaseOrderDeliveryDetails (
-                            Sno, OrderId, TransporterIndex, Location, ArrivalDate, ItemId, ItemName, Concern, BillNo, BillDate, Quantity, 
-                            Weight, Units, BatchLocation, PendingQuantity, CreatedBy
+                            indexValue, OrderId, Location, TransporterIndex, ArrivalDate, ItemId, ItemName, Concern, BillNo, BillDate, 
+                            Quantity, Weight, Units, BatchLocation, PendingQuantity, CreatedBy
                         ) VALUES (
-                            @Sno, @OrderId, @TransporterIndex, @Location, @ArrivalDate, @ItemId, @ItemName, @Concern, @BillNo, @BillDate, @Quantity, 
-                            @Weight, @Units, @BatchLocation, @PendingQuantity, @CreatedBy
-                        );`
-                    );
+                            @indexValue, @OrderId, @Location, @TransporterIndex, @ArrivalDate, @ItemId, @ItemName, @Concern, @BillNo, @BillDate,
+                            @Quantity, @Weight, @Units, @BatchLocation, @PendingQuantity, @CreatedBy
+                        )
+                    `);
 
-                if (DeliveryDetailsInsert.rowsAffected[0] == 0) {
-                    throw new Error('Failed to insert Delivery Details')
+                if (result.rowsAffected[0] == 0) {
+                    throw new Error('Failed to update Delivery Details')
                 }
             }
 
             for (let i = 0; i < TranspoterDetails.length; i++) {
+                const transporter = TranspoterDetails[i];
 
-                const TranspoterInfo = TranspoterDetails[i];
-
-                const TranspoterInsert = await new sql.Request(transaction)
+                const result = await new sql.Request(transaction)
                     .input('OrderId', OrderId)
-                    .input('Loading_Load', TranspoterInfo?.Loading_Load)
-                    .input('Loading_Empty', TranspoterInfo?.Loading_Empty)
-                    .input('Unloading_Load', TranspoterInfo?.Unloading_Load)
-                    .input('Unloading_Empty', TranspoterInfo?.Unloading_Empty)
-                    .input('EX_SH', TranspoterInfo?.EX_SH)
-                    .input('DriverName', TranspoterInfo?.DriverName)
-                    .input('VehicleNo', TranspoterInfo?.VehicleNo)
-                    .input('PhoneNumber', TranspoterInfo?.PhoneNumber)
-                    .input('CreatedBy', TranspoterInfo?.CreatedBy)
+                    .input('indexValue', Number(transporter?.indexValue))
+                    .input('Id', transporter?.Id)
+                    .input('Loading_Load', transporter?.Loading_Load)
+                    .input('Loading_Empty', transporter?.Loading_Empty)
+                    .input('Unloading_Load', transporter?.Unloading_Load)
+                    .input('Unloading_Empty', transporter?.Unloading_Empty)
+                    .input('EX_SH', transporter?.EX_SH)
+                    .input('DriverName', transporter?.DriverName)
+                    .input('VehicleNo', transporter?.VehicleNo)
+                    .input('PhoneNumber', Number(transporter?.PhoneNumber))
+                    .input('CreatedBy', Number(transporter?.CreatedBy))
                     .query(`
                         INSERT INTO tbl_PurchaseOrderTranspoterDetails (
-                            OrderId, Loading_Load, Loading_Empty, Unloading_Load, Unloading_Empty, 
-                            EX_SH, DriverName, VehicleNo, PhoneNumber, CreatedBy
+                            indexValue, OrderId, Loading_Load, Loading_Empty, Unloading_Load, Unloading_Empty, EX_SH, 
+                            DriverName, VehicleNo, PhoneNumber, CreatedBy
                         ) VALUES (
-                            @OrderId, @Loading_Load, @Loading_Empty, @Unloading_Load, @Unloading_Empty, 
-                            @EX_SH, @DriverName, @VehicleNo, @PhoneNumber, @CreatedBy
-                        )
-                        `);
+                            @indexValue, @OrderId, @Loading_Load, @Loading_Empty, @Unloading_Load, @Unloading_Empty, @EX_SH, 
+                            @DriverName, @VehicleNo, @PhoneNumber, @CreatedBy
+                        );
+                    `);
 
-                if (TranspoterInsert.rowsAffected[0] == 0) {
-                    throw new Error('Failed to insert Transpoter Details')
+                if (result.rowsAffected[0] == 0) {
+                    throw new Error('Failed to update Transporter details')
                 }
             }
 
@@ -333,13 +333,13 @@ const PurchaseOrderDataEntry = () => {
                 const result = await new sql.Request(transaction)
                     .input('Sno', i)
                     .input('OrderId', Id)
-                    .input('ItemId', item?.ItemId)
+                    .input('ItemId', Number(item?.ItemId))
                     .input('ItemName', item?.ItemName)
-                    .input('Weight', item?.Weight)
+                    .input('Weight', Number(item?.Weight))
                     .input('Units', item?.Units)
-                    .input('Rate', item?.Rate)
+                    .input('Rate', Number(item?.Rate))
                     .input('DeliveryLocation', item?.DeliveryLocation)
-                    .input('Discount', item?.Discount)
+                    .input('Discount', Number(item?.Discount))
                     .input('QualityCondition', item?.QualityCondition)
                     .query(`
                         INSERT INTO tbl_PurchaseOrderItemDetails (
@@ -359,29 +359,29 @@ const PurchaseOrderDataEntry = () => {
                 const delivery = DelivdryDetails[i];
 
                 const result = await new sql.Request(transaction)
-                    .input('Sno', i + 1)
+                    .input('indexValue', Number(delivery?.indexValue))
                     .input('OrderId', Id)
                     .input('Id', delivery?.Id)
-                    .input('TransporterIndex', delivery?.TransporterIndex)
+                    .input('TransporterIndex', Number(delivery?.TransporterIndex))
                     .input('Location', delivery?.Location)
                     .input('ArrivalDate', delivery?.ArrivalDate)
-                    .input('ItemId', delivery?.ItemId)
+                    .input('ItemId', Number(delivery?.ItemId))
                     .input('ItemName', delivery?.ItemName)
                     .input('Concern', delivery?.Concern)
                     .input('BillNo', delivery?.BillNo)
                     .input('BillDate', delivery?.BillDate)
-                    .input('Quantity', delivery?.Quantity)
-                    .input('Weight', delivery?.Weight)
+                    .input('Quantity', Number(delivery?.Quantity))
+                    .input('Weight', Number(delivery?.Weight))
                     .input('Units', delivery?.Units)
                     .input('BatchLocation', delivery?.BatchLocation)
-                    .input('PendingQuantity', delivery?.PendingQuantity)
-                    .input('CreatedBy', delivery?.CreatedBy)
+                    .input('PendingQuantity', Number(delivery?.PendingQuantity))
+                    .input('CreatedBy', Number(delivery?.CreatedBy))
                     .query(`
                         INSERT INTO tbl_PurchaseOrderDeliveryDetails (
-                            Sno, OrderId, Location, TransporterIndex, ArrivalDate, ItemId, ItemName, Concern, BillNo, BillDate, 
+                            indexValue, OrderId, Location, TransporterIndex, ArrivalDate, ItemId, ItemName, Concern, BillNo, BillDate, 
                             Quantity, Weight, Units, BatchLocation, PendingQuantity, CreatedBy
                         ) VALUES (
-                            @Sno, @OrderId, @Location, @TransporterIndex, @ArrivalDate, @ItemId, @ItemName, @Concern, @BillNo, @BillDate,
+                            @indexValue, @OrderId, @Location, @TransporterIndex, @ArrivalDate, @ItemId, @ItemName, @Concern, @BillNo, @BillDate,
                             @Quantity, @Weight, @Units, @BatchLocation, @PendingQuantity, @CreatedBy
                         )
                     `);
@@ -397,6 +397,7 @@ const PurchaseOrderDataEntry = () => {
 
                 const result = await new sql.Request(transaction)
                     .input('OrderId', Id)
+                    .input('indexValue', Number(transporter?.indexValue))
                     .input('Id', transporter?.Id)
                     .input('Loading_Load', transporter?.Loading_Load)
                     .input('Loading_Empty', transporter?.Loading_Empty)
@@ -405,14 +406,14 @@ const PurchaseOrderDataEntry = () => {
                     .input('EX_SH', transporter?.EX_SH)
                     .input('DriverName', transporter?.DriverName)
                     .input('VehicleNo', transporter?.VehicleNo)
-                    .input('PhoneNumber', transporter?.PhoneNumber)
-                    .input('CreatedBy', transporter?.CreatedBy)
+                    .input('PhoneNumber', Number(transporter?.PhoneNumber))
+                    .input('CreatedBy', Number(transporter?.CreatedBy))
                     .query(`
                         INSERT INTO tbl_PurchaseOrderTranspoterDetails (
-                            OrderId, Loading_Load, Loading_Empty, Unloading_Load, Unloading_Empty, EX_SH, 
+                            indexValue, OrderId, Loading_Load, Loading_Empty, Unloading_Load, Unloading_Empty, EX_SH, 
                             DriverName, VehicleNo, PhoneNumber, CreatedBy
                         ) VALUES (
-                            @OrderId, @Loading_Load, @Loading_Empty, @Unloading_Load, @Unloading_Empty, @EX_SH, 
+                            @indexValue, @OrderId, @Loading_Load, @Loading_Empty, @Unloading_Load, @Unloading_Empty, @EX_SH, 
                             @DriverName, @VehicleNo, @PhoneNumber, @CreatedBy
                         );
                     `);
