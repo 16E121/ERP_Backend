@@ -283,6 +283,11 @@ export const NumberFormat = (num) => {
     return Number(num).toLocaleString('en-IN', { maximumFractionDigits: 2 })
 }
 
+export const createPadString = (number, padLength = 0) => {
+    const numberStr = number.toString(); 
+    return numberStr.padStart(padLength, '0'); 
+}
+
 export const RoundNumber = (num) => {
     return checkIsNumber(num) ? Number(num).toFixed(2) : 0;
 }
@@ -349,7 +354,7 @@ export const createAbbreviation = (sentence) => {
 }
 
 export const checkIsNumber = (num) => {
-    return num ? isNaN(num) ? false : true : false
+    return (num !== '' && num !== null && num !== undefined) ? isNaN(num) ? false : true : false
 }
 
 export const isNumber = value => !isNaN(parseInt(value, 10)) && isFinite(value);

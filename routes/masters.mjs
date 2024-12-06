@@ -108,6 +108,8 @@ MastersRouter.post('/employeedetails/assignTask',employeesTasks.assignTaskForEmp
 MastersRouter.put('/employeedetails/updateTask',employeesTasks.modifyTaskAssignedForEmployee)
 MastersRouter.get('/employeedetails/assignedTaskDetails',employeesTasks.getEmployeeAssignedInTheTask)
 MastersRouter.delete('/employeedetails/deleteTask',employeesTasks.deleteAssignedTaskDetails)
+MastersRouter.get('/routes/dropdown', salesAppMasters.getRoutes);
+MastersRouter.get('/areas/dropdown', salesAppMasters.getareaRoutes);    
 
 
 MastersRouter.delete('/employeedetails/deleteTask',employeesTasks.deleteAssignedTaskDetails)

@@ -106,6 +106,8 @@ const RetailerControll = () => {
         }
     }
 
+
+
     const getRetailerDropDown = async (req, res) => {
         const { isRetailer = 1, isVendor = 0 } = req.query;
 
@@ -116,7 +118,8 @@ const RetailerControll = () => {
                 .query(`
                     SELECT 
                         Retailer_Id,
-                        Retailer_Name
+                        Retailer_Name,
+                        Reatailer_Address
                     FROM 
                         tbl_Retailers_Master
                     WHERE

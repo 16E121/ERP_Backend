@@ -24,7 +24,7 @@ const sfMasters = () => {
 
         try {
             let query = `
-            SELECT 
+            SELECT  
             	dm.*,
             	COALESCE(sm.State_Name, 'Unknown') AS State_Name
             FROM 
@@ -146,7 +146,47 @@ const sfMasters = () => {
             servError(e, res)
         }
     }
+    const getRoutes = async (req, res) => {
+    
 
+        try {
+
+            const result = (await new sql.Request()
+                .query(` SELECT Route_Id, Route_Name FROM tbl_Route_Master WHERE Route_Id != 0 
+                        `)
+                        // AND Company_id = @comp
+            ).recordset;
+
+            if (result.length > 0) {
+                dataFound(res, result)
+            } else {
+                noData(res)
+            }
+        } catch (e) {
+            servError(e, res);
+        }
+    }
+
+    const getareaRoutes = async (req, res) => {
+    
+
+        try {
+
+            const result = (await new sql.Request()
+                .query(` SELECT * FROM tbl_Area_Master WHERE Area_Id != 1
+                        `)
+                        // AND Company_id = @comp
+            ).recordset;
+
+            if (result.length > 0) {
+                dataFound(res, result)
+            } else {
+                noData(res)
+            }
+        } catch (e) {
+            servError(e, res);
+        }
+    }
 
 
     return {
@@ -157,6 +197,8 @@ const sfMasters = () => {
         getDistributors,
         getUOM,
         getBrand,
+        getRoutes,
+        getareaRoutes
     }
 }
 

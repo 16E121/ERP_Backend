@@ -9,6 +9,7 @@ import driverActivity from "../controller/DataEntry/driverActivity.mjs";
 import { getMachineOuternController, MachineOuternControll } from '../controller/DataEntry/machineOutern.mjs';
 import { getInwardActivity, InwardActivityControll } from '../controller/DataEntry/inwardActivity.mjs';
 import purchaseOrder from '../controller/DataEntry/purchaseOrder.mjs';
+import costCenter from '../controller/DataEntry/costCenter.mjs';
 
 const dataEntryRouter = express.Router();
 
@@ -68,11 +69,17 @@ dataEntryRouter.put('/dataEntryAttendance', attendance.updateAttendance)
 
 
 // Purchase Order
+dataEntryRouter.get('/godownLocationMaster', purchaseOrder.godownLocation);
 dataEntryRouter.get('/purchaseOrderEntry', purchaseOrder.getPurchaseOrder)
 dataEntryRouter.post('/purchaseOrderEntry', purchaseOrder.createPurchaseOrder)
 dataEntryRouter.put('/purchaseOrderEntry', purchaseOrder.updatePurchaseOrder)
 dataEntryRouter.delete('/purchaseOrderEntry', purchaseOrder.deleteOrderPermanantly);
 dataEntryRouter.put('/purchaseOrderEntry/ArrivalUpdate', purchaseOrder.updateArrivalDetails);
+
+
+dataEntryRouter.get('/costCenter', costCenter.getCostCenter);
+dataEntryRouter.post('/costCenter', costCenter.createCostCenter);
+dataEntryRouter.put('/costCenter', costCenter.updateCostCenter);
 
 
 export default dataEntryRouter;

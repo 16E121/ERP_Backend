@@ -21,31 +21,56 @@ const taxCalc = (method = 1, amount = 0, percentage = 0) => {
 }
 
 const SaleOrder = () => {
-
-    const saleOrderCreation = async (req, res) => {
+    const salesDeliveryCreation = async (req, res) => {
         const {
-            Retailer_Id, Sales_Person_Id, Branch_Id,
-            Narration = null, Created_by, Product_Array = [], GST_Inclusive = 1, IS_IGST = 0
+            Retailer_Id, Delivery_Person_Id, Branch_Id,
+            Narration = null, Created_by, Delivery_Location, Payment_Mode, Payment_Status, Delivery_Status,
+            Payment_Ref_No = null, Delivery_Time = null, Product_Array = [], So_No,
+            GST_Inclusive = 1, IS_IGST = 0
         } = req.body;
 
-        const So_Date = ISOString(req?.body?.So_Date);
+        const Do_Date = ISOString(req?.body?.Do_Date);
         const isExclusiveBill = isEqualNumber(GST_Inclusive, 0);
         const isInclusive = isEqualNumber(GST_Inclusive, 1);
         const isNotTaxableBill = isEqualNumber(GST_Inclusive, 2);
         const isIGST = isEqualNumber(IS_IGST, 1);
 
-        if (
-            !checkIsNumber(Retailer_Id)
-            || !checkIsNumber(Sales_Person_Id)
-            || !checkIsNumber(Created_by)
-            || (!Array.isArray(Product_Array) || Product_Array.length === 0)
-        ) {
-            return invalidInput(res, 'Retailer_Id, Sales_Person_Id, Created_by, Product_Array is Required')
+        if (!Do_Date || !Retailer_Id || !Delivery_Person_Id || !Created_by || !Array.isArray(Product_Array) || Product_Array.length === 0) {
+            return invalidInput(res, 'Please select Delivery Person')
         }
+
 
         const transaction = new sql.Transaction();
 
         try {
+            await transaction.begin();
+            const requestForSoNoCheck = new sql.Request(transaction);
+            requestForSoNoCheck.input('So_No', sql.Int, So_No);
+            const resultForSoNoCheck = await requestForSoNoCheck.query(`
+            SELECT COUNT(*) AS count 
+            FROM tbl_Sales_Delivery_Gen_Info 
+            WHERE So_No = @So_No
+        `);
+
+        if (resultForSoNoCheck.recordset[0].count > 0) {
+            const queryUpdate = new sql.Request(transaction);
+            queryUpdate.input('So_No', sql.Int, So_No);
+            await queryUpdate.query(`
+                UPDATE tbl_Sales_Delivery_Gen_Info
+                SET Cancel_Status = 2
+                WHERE So_No = @So_No
+            `);
+    
+            await transaction.commit();
+            return success(res, 'Order Moved to Sales Delivery to Sale Order.');
+        }
+            const requestForDoNo = new sql.Request(transaction);
+            const resultForDoNo = await requestForDoNo.query(`
+                SELECT COUNT(*) AS count
+                FROM tbl_Sales_Delivery_Gen_Info
+            `);
+
+            const maxDoNo = Number(resultForDoNo.recordset[0].count) + 1;
             const productsData = (await getProducts()).dataArray;
             const Alter_Id = Math.floor(Math.random() * 999999);
 
@@ -96,53 +121,54 @@ const SaleOrder = () => {
                 TotalTax: 0
             });
 
-            await transaction.begin();
+            // await transaction.begin();
 
-            const request = new sql.Request(transaction)
-                .input('date', So_Date)
-                .input('retailer', Retailer_Id)
-                .input('salesperson', Sales_Person_Id)
-                .input('branch', Branch_Id)
-                .input('GST_Inclusive', GST_Inclusive)
-                .input('CSGT_Total', isIGST ? 0 : totalValueBeforeTax.TotalTax / 2)
-                .input('SGST_Total', isIGST ? 0 : totalValueBeforeTax.TotalTax / 2)
-                .input('IGST_Total', isIGST ? totalValueBeforeTax.TotalTax : 0)
-                .input('IS_IGST', isIGST ? 1 : 0)
-                .input('roundoff', Total_Invoice_value - (totalValueBeforeTax.TotalValue + totalValueBeforeTax.TotalTax))
-                .input('totalinvoice', Total_Invoice_value)
-                .input('Total_Before_Tax', totalValueBeforeTax.TotalValue)
-                .input('Total_Tax', totalValueBeforeTax.TotalTax)
-                .input('narration', Narration)
-                .input('cancel', 0)
-                .input('createdby', Created_by)
-                .input('alterby', Created_by)
-                .input('Alter_Id', Alter_Id)
-                .input('createdon', new Date())
-                .input('alteron', new Date())
-                .input('Trans_Type', 'INSERT')
-                .query(`
-                    INSERT INTO tbl_Sales_Order_Gen_Info (
-                        So_Date, Retailer_Id, Sales_Person_Id, Branch_Id, CSGT_Total, SGST_Total, IGST_Total,
-                        GST_Inclusive, IS_IGST, Round_off, Total_Invoice_value, Total_Before_Tax, Total_Tax,
-                        Narration, Cancel_status, Created_by, Altered_by, Alter_Id, Created_on, Alterd_on,
-                        Trans_Type
-                    ) VALUES (
-                        @date, @retailer, @salesperson, @branch, @CSGT_Total, @SGST_Total, @IGST_Total,
-                        @GST_Inclusive, @IS_IGST, @roundoff, @totalinvoice, @Total_Before_Tax, @Total_Tax,
-                        @narration, @cancel, @createdby, @alterby, @Alter_Id, @createdon, @alteron,
-                        @Trans_Type
-                    );
-                    SELECT SCOPE_IDENTITY() AS OrderId;`
+            const request = new sql.Request(transaction);
+            request.input('Do_No', maxDoNo)
+            request.input('Do_Date', sql.Date, Do_Date);
+            request.input('Retailer_Id', sql.Int, Retailer_Id);
+            request.input('Delivery_Person_Id', sql.Int, Number(Delivery_Person_Id));
+            request.input('Branch_Id', sql.Int, Branch_Id);
+            request.input('GST_Inclusive', sql.Int, GST_Inclusive);
+            request.input('CSGT_Total', IS_IGST ? 0 : totalValueBeforeTax.TotalTax / 2);
+            request.input('SGST_Total', IS_IGST ? 0 : totalValueBeforeTax.TotalTax / 2);
+            request.input('IGST_Total', IS_IGST ? totalValueBeforeTax.TotalTax : 0);
+            request.input('Round_off', Total_Invoice_value - (totalValueBeforeTax.TotalValue + totalValueBeforeTax.TotalTax));
+            request.input('Total_Before_Tax', totalValueBeforeTax.TotalValue);
+            request.input('Total_Tax', totalValueBeforeTax.TotalTax);
+            request.input('Total_Invoice_value', Total_Invoice_value);
+            request.input('Narration', Narration);
+            request.input('Cancel_status', 2);
+            request.input('So_No', So_No)
+            request.input('Delivery_Status', sql.Int, Delivery_Status);
+            request.input('Delivery_Time', sql.NVarChar(50), Delivery_Time);
+            request.input('Delivery_Location', sql.NVarChar(250), Delivery_Location);
+            request.input('Payment_Ref_No', sql.NVarChar(255), Payment_Ref_No);
+            request.input('Payment_Mode', sql.Int, Payment_Mode);
+            request.input('Payment_Status', sql.Int, Payment_Status);
+            request.input('Alter_Id', sql.BigInt, Alter_Id)
+            request.input('Created_by', sql.BigInt, Created_by);
+            request.input('Created_on', sql.DateTime, new Date());
+            request.input('Trans_Type', 'INSERT')
+
+            const result = await request.query(`
+                INSERT INTO tbl_Sales_Delivery_Gen_Info (
+                   Do_No, Do_Date, Retailer_Id, Delivery_Person_Id, Branch_Id,
+                    GST_Inclusive, CSGT_Total, SGST_Total, IGST_Total, Round_off,
+                    Total_Before_Tax, Total_Tax, Total_Invoice_value, Narration,
+                    Cancel_status,So_No, Delivery_Status, Delivery_Time, Delivery_Location,
+                 Trans_Type,Payment_Mode, Payment_Ref_No, Payment_Status,Alter_Id, Created_by,Created_on
+                ) VALUES (
+                   @Do_No, @Do_Date, @Retailer_Id, @Delivery_Person_Id, @Branch_Id,
+                    @GST_Inclusive, @CSGT_Total, @SGST_Total, @IGST_Total, @Round_off,
+                    @Total_Before_Tax, @Total_Tax, @Total_Invoice_value, @Narration,
+                    @Cancel_status,@So_No, @Delivery_Status, @Delivery_Time, @Delivery_Location,
+                    @Trans_Type,@Payment_Mode, @Payment_Ref_No, @Payment_Status,@Alter_Id, @Created_by,@Created_on
                 );
+                SELECT SCOPE_IDENTITY() AS DeliveryId;
+            `);
 
-            const result = await request;
-
-            if (result.rowsAffected[0] === 0) {
-                throw new Error('Failed to create order, Try again.');
-            }
-
-            const OrderId = result.recordset[0].OrderId;
-
+            const DeliveryId = result.recordset && result.recordset.length > 0 ? result.recordset[0].DeliveryId : 1;
 
             for (let i = 0; i < Product_Array.length; i++) {
                 const product = Product_Array[i];
@@ -164,8 +190,8 @@ const SaleOrder = () => {
                 const Igst_Amo = isIGST ? taxCalc(GST_Inclusive, Amount, gstPercentage) : 0;
 
                 const request2 = new sql.Request(transaction)
-                    .input('So_Date', So_Date)
-                    .input('Sales_Order_Id', OrderId)
+                    .input('Do_Date', Do_Date)
+                    .input('DeliveryOrder', DeliveryId)
                     .input('S_No', i + 1)
                     .input('Item_Id', product.Item_Id)
                     .input('Bill_Qty', Bill_Qty)
@@ -188,13 +214,14 @@ const SaleOrder = () => {
                     .input('Igst_Amo', isNotTaxableBill ? 0 : Igst_Amo)
                     .input('Final_Amo', Final_Amo)
                     .input('Created_on', new Date())
+
                     .query(`
-                        INSERT INTO tbl_Sales_Order_Stock_Info (
-                            So_Date, Sales_Order_Id, S_No, Item_Id, Bill_Qty, Item_Rate, Amount, Free_Qty, Total_Qty, 
+                        INSERT INTO tbl_Sales_Delivery_Stock_Info (
+                            Do_Date, Delivery_Order_Id, S_No, Item_Id, Bill_Qty, Item_Rate, Amount, Free_Qty, Total_Qty, 
                             Taxble, Taxable_Rate, HSN_Code, Unit_Id, Unit_Name, Taxable_Amount, Tax_Rate, 
                             Cgst, Cgst_Amo, Sgst, Sgst_Amo, Igst, Igst_Amo, Final_Amo, Created_on
                         ) VALUES (
-                            @So_Date, @Sales_Order_Id, @S_No, @Item_Id, @Bill_Qty, @Item_Rate, @Amount, @Free_Qty, @Total_Qty, 
+                            @Do_Date, @DeliveryOrder, @S_No, @Item_Id, @Bill_Qty, @Item_Rate, @Amount, @Free_Qty, @Total_Qty, 
                             @Taxble, @Taxable_Rate, @HSN_Code, @Unit_Id, @Unit_Name, @Taxable_Amount, @Tax_Rate, 
                             @Cgst, @Cgst_Amo, @Sgst, @Sgst_Amo, @Igst, @Igst_Amo, @Final_Amo, @Created_on
                         );`
@@ -207,37 +234,40 @@ const SaleOrder = () => {
                 }
             }
 
+
+            // Commit the transaction
             await transaction.commit();
 
-            success(res, 'Order Created!')
+            success(res, 'Delivery Created!')
         } catch (e) {
             if (transaction._aborted === false) {
                 await transaction.rollback();
             }
             servError(e, res)
         }
-    }
+    };
 
-    const editSaleOrder = async (req, res) => {
+    const editDeliveryOrder = async (req, res) => {
         const {
-            So_Id, Retailer_Id, Sales_Person_Id, Branch_Id,
-            Narration = null, Created_by, Product_Array, GST_Inclusive = 1, IS_IGST = 0
+            Do_Id, Retailer_Id, Delivery_Person_Id, Branch_Id,
+            Narration, Created_by, Product_Array, GST_Inclusive = 1, IS_IGST = 0, Delivery_Status,
+            Delivery_Time, Delivery_Location, Delivery_Latitude, Delivery_Longitude, Collected_By, Collected_Status, Payment_Mode, Payment_Status, Payment_Ref_No
         } = req.body;
 
-        const So_Date = ISOString(req?.body?.So_Date);
+        const Do_Date = ISOString(req?.body?.Do_Date);
         const isExclusiveBill = isEqualNumber(GST_Inclusive, 0);
         const isInclusive = isEqualNumber(GST_Inclusive, 1);
         const isNotTaxableBill = isEqualNumber(GST_Inclusive, 2);
         const isIGST = isEqualNumber(IS_IGST, 1);
 
         if (
-            !checkIsNumber(So_Id)
+            !checkIsNumber(Do_Id)
             || !checkIsNumber(Retailer_Id)
-            || !checkIsNumber(Sales_Person_Id)
+            || !checkIsNumber(Delivery_Person_Id)
             || !checkIsNumber(Created_by)
             || (!Array.isArray(Product_Array) || Product_Array.length === 0)
         ) {
-            return invalidInput(res, 'So_Id, Retailer_Id, Sales_Person_Id, Created_by, Product_Array is Required')
+            return invalidInput(res, 'Do_Id, Retailer_Id, Delivery_Person_Id, Created_by, Product_Array is Required')
         }
 
         const transaction = new sql.Transaction();
@@ -296,10 +326,10 @@ const SaleOrder = () => {
             await transaction.begin();
 
             const request = new sql.Request(transaction)
-                .input('soid', So_Id)
-                .input('date', So_Date)
+                .input('doid', Do_Id)
+                .input('date', Do_Date)
                 .input('retailer', Retailer_Id)
-                .input('salesperson', Sales_Person_Id)
+                .input('deliveryperson', Delivery_Person_Id)
                 .input('branch', Branch_Id)
                 .input('GST_Inclusive', GST_Inclusive)
                 .input('CSGT_Total', isIGST ? 0 : totalValueBeforeTax.TotalTax / 2)
@@ -314,14 +344,24 @@ const SaleOrder = () => {
                 .input('alterby', Created_by)
                 .input('Alter_Id', Alter_Id)
                 .input('alteron', new Date())
+                .input('deliverystatus', Delivery_Status)
+                .input('deliveryTime', Delivery_Time)
+                .input('deliveryLocation', Delivery_Location)
+                .input('deliverylatitude', Delivery_Latitude)
+                .input('deliverylongitute', Delivery_Longitude)
+                .input('collectedby', Collected_By)
+                .input('collectedStatus', Collected_Status)
+                .input('paymentMode', Payment_Mode)
+                .input('paymentStatus', Payment_Status)
+                .input('paymentrefno', Payment_Ref_No)
                 .input('Trans_Type', 'UPDATE')
                 .query(`
                     UPDATE 
-                        tbl_Sales_Order_Gen_Info
+                        tbl_Sales_Delivery_Gen_Info
                     SET
-                        So_Date = @date, 
+                        Do_Date = @date, 
                         Retailer_Id = @retailer, 
-                        Sales_Person_Id = @salesperson, 
+                        Delivery_Person_Id = @deliveryperson, 
                         Branch_Id = @branch, 
                         GST_Inclusive = @GST_Inclusive, 
                         IS_IGST = @IS_IGST, 
@@ -335,10 +375,20 @@ const SaleOrder = () => {
                         Narration = @narration,  
                         Altered_by = @alterby, 
                         Alter_Id = @Alter_Id, 
+                        Delivery_Time=@deliveryTime,
+                        Delivery_Status=@deliverystatus,
+                       Delivery_Location=@deliveryLocation,
+                       Delivery_Latitude=@deliverylatitude,
+                       Delivery_Longitude=@deliverylongitute,
+                       Collected_By=@collectedby,
+                       Collected_Status=@collectedStatus,
+                       Payment_Mode=@paymentMode,
+                       Payment_Status=@paymentStatus,
+                       Payment_Ref_No=@paymentrefno,
                         Alterd_on = @alteron,
                         Trans_Type = @Trans_Type
                     WHERE
-                        So_Id = @soid;
+                        Do_Id = @doid;
                     `
                 );
 
@@ -349,8 +399,8 @@ const SaleOrder = () => {
             }
 
             await new sql.Request(transaction)
-                .input('soid', So_Id)
-                .query(`DELETE FROM tbl_Sales_Order_Stock_Info WHERE Sales_Order_Id = @soid`);
+                .input('doid', Do_Id)
+                .query(`DELETE FROM tbl_Sales_Delivery_Stock_Info WHERE Delivery_Order_Id = @doid`);
 
             for (let i = 0; i < Product_Array.length; i++) {
                 const product = Product_Array[i];
@@ -374,8 +424,8 @@ const SaleOrder = () => {
                 const Igst_Amo = isIGST ? taxCalc(GST_Inclusive, Amount, gstPercentage) : 0;
 
                 const request2 = new sql.Request(transaction)
-                    .input('So_Date', So_Date ? So_Date : new Date())
-                    .input('Sales_Order_Id', So_Id)
+                    .input('Do_Date', Do_Date ? Do_Date : new Date())
+                    .input('Delivery_Order_Id', Do_Id)
                     .input('S_No', i + 1)
                     .input('Item_Id', product.Item_Id)
                     .input('Bill_Qty', Bill_Qty)
@@ -399,12 +449,12 @@ const SaleOrder = () => {
                     .input('Final_Amo', Final_Amo)
                     .input('Created_on', new Date())
                     .query(`
-                        INSERT INTO tbl_Sales_Order_Stock_Info (
-                            So_Date, Sales_Order_Id, S_No, Item_Id, Bill_Qty, Item_Rate, Amount, Free_Qty, Total_Qty, 
+                        INSERT INTO tbl_Sales_Delivery_Stock_Info (
+                            Do_Date, Delivery_Order_Id, S_No, Item_Id, Bill_Qty, Item_Rate, Amount, Free_Qty, Total_Qty, 
                             Taxble, Taxable_Rate, HSN_Code, Unit_Id, Unit_Name, Taxable_Amount, Tax_Rate, 
                             Cgst, Cgst_Amo, Sgst, Sgst_Amo, Igst, Igst_Amo, Final_Amo, Created_on
                         ) VALUES (
-                            @So_Date, @Sales_Order_Id, @S_No, @Item_Id, @Bill_Qty, @Item_Rate, @Amount, @Free_Qty, @Total_Qty, 
+                            @Do_Date, @Delivery_Order_Id, @S_No, @Item_Id, @Bill_Qty, @Item_Rate, @Amount, @Free_Qty, @Total_Qty, 
                             @Taxble, @Taxable_Rate, @HSN_Code, @Unit_Id, @Unit_Name, @Taxable_Amount, @Tax_Rate, 
                             @Cgst, @Cgst_Amo, @Sgst, @Sgst_Amo, @Igst, @Igst_Amo, @Final_Amo, @Created_on
                         );`
@@ -451,9 +501,9 @@ const SaleOrder = () => {
                     LEFT JOIN tbl_Brand_Master AS b
                     ON b.Brand_Id = pm.Brand
                 WHERE
-                    CONVERT(DATE, oi.So_Date) >= CONVERT(DATE, @from)
+                    CONVERT(DATE, oi.Do_Date) >= CONVERT(DATE, @from)
             	    AND
-            	    CONVERT(DATE, oi.So_Date) <= CONVERT(DATE, @to)
+            	    CONVERT(DATE, oi.Do_Date) <= CONVERT(DATE, @to)
             )
             SELECT 
             	so.*,
@@ -488,9 +538,9 @@ const SaleOrder = () => {
             	ON cb.UserId = so.Created_by
                         
             WHERE
-                CONVERT(DATE, so.So_Date) >= CONVERT(DATE, @from)
+                CONVERT(DATE, so.Do_Date) >= CONVERT(DATE, @from)
             	AND
-            	CONVERT(DATE, so.So_Date) <= CONVERT(DATE, @to) 
+            	CONVERT(DATE, so.Do_Date) <= CONVERT(DATE, @to) 
             `;
 
             if (Retailer_Id) {
@@ -518,7 +568,7 @@ const SaleOrder = () => {
             }
 
             query += `
-            ORDER BY CONVERT(DATETIME, so.So_Id) DESC`;
+            ORDER BY CONVERT(DATETIME, so.Do_Id) DESC`;
 
             const request = new sql.Request();
             request.input('from', Fromdate);
@@ -553,102 +603,104 @@ const SaleOrder = () => {
 
 
     const getDeliveryorder = async (req, res) => {
-        const { Retailer_Id, Cancel_status, Created_by, Sales_Person_Id,Route_Id,Area_Id } = req.query;
+        const { Retailer_Id, Cancel_status, Created_by, Delivery_Person_Id, Route_Id, Area_Id } = req.query;
 
         const Fromdate = ISOString(req.query.Fromdate), Todate = ISOString(req.query.Todate);
 
         try {
-                  let query=`
-                  WITH SALES_DETAILS AS (
-                      SELECT
-                          oi.*,
-                          COALESCE(pm.Product_Name, 'not available') AS Product_Name,
-                          COALESCE(pm.Product_Image_Name, 'not available') AS Product_Image_Name,
-                          COALESCE(u.Units, 'not available') AS UOM,
-                          COALESCE(b.Brand_Name, 'not available') AS BrandGet
-                      FROM
-                          tbl_Sales_Order_Stock_Info AS oi
-                      LEFT JOIN tbl_Product_Master AS pm
-                          ON pm.Product_Id = oi.Item_Id
-                      LEFT JOIN tbl_UOM AS u
-                          ON u.Unit_Id = oi.Unit_Id
-                      LEFT JOIN tbl_Brand_Master AS b
-                          ON b.Brand_Id = pm.Brand
-                              WHERE
-                                CONVERT(DATE, oi.So_Date) >= CONVERT(DATE, @from)
-                                AND
-                                CONVERT(DATE, oi.So_Date) <= CONVERT(DATE, @to)
-                  )
-                  SELECT 
-                      so.*,
-                      COALESCE(rm.Retailer_Name, 'unknown') AS Retailer_Name,
-                      COALESCE(sp.Name, 'unknown') AS Sales_Person_Name,
-                      COALESCE(bm.BranchName, 'unknown') AS Branch_Name,
-                      COALESCE(cb.Name, 'unknown') AS Created_BY_Name,
-                      COALESCE(rmt.Route_Name, 'Unknown') AS Routename, 
-                      COALESCE(am.Area_Name, 'Unknown') AS AreaName,
-                      COALESCE(rmt.Route_Id, 0) AS Route_Id,
-                      COALESCE(rm.Area_Id, 0) AS Area_Id,
-                      COALESCE(sdgi.Delivery_Person_Id, 0) AS Delivery_Person_Id,
-                      COALESCE(sdgi.Delivery_Status, 0) AS Delivery_Status,
-                      COALESCE(sdgi.Total_Invoice_Value, 0) AS Total_Invoice_Value,
-                      COALESCE(( 
-                          SELECT
-                              sd.*
-                          FROM
-                              SALES_DETAILS AS sd
-                          WHERE
-                              sd.Sales_Order_Id = so.So_Id
-                          FOR JSON PATH
-                      ), '[]') AS Products_List
-                  FROM 
-                      tbl_Sales_Order_Gen_Info AS so
-                  LEFT JOIN tbl_Retailers_Master AS rm
-                      ON rm.Retailer_Id = so.Retailer_Id
-                  LEFT JOIN tbl_Users AS sp
-                      ON sp.UserId = so.Sales_Person_Id
-                  LEFT JOIN tbl_Branch_Master bm
-                      ON bm.BranchId = so.Branch_Id
-                  LEFT JOIN tbl_Users AS cb
-                      ON cb.UserId = so.Created_by
-                  LEFT JOIN tbl_Route_Master AS rmt
-                      ON rmt.Route_Id = rm.Route_Id 
-                  LEFT JOIN tbl_Area_Master AS am
-                      ON am.Area_Id = rm.Area_Id
-                  LEFT JOIN tbl_Sales_Delivery_Gen_Info AS sdgi
-                      ON sdgi.So_No = so.So_Id
-                  
-                        WHERE
-                         (sdgi.Cancel_status IS NULL OR sdgi.Cancel_status != 2) AND 
-                                  CONVERT(DATE, so.So_Date) >= CONVERT(DATE, @from)
-                              	AND
-                              	CONVERT(DATE, so.So_Date) <= CONVERT(DATE, @to) 
-                      `
+
+            let query = `
+                WITH SALES_DETAILS AS (
+                SELECT
+                oi.*,
+                
+                COALESCE(pm.Product_Name, 'not available') AS Product_Name,
+                COALESCE(pm.Product_Image_Name, 'not available') AS Product_Image_Name,
+                COALESCE(u.Units, 'not available') AS UOM,
+                COALESCE(b.Brand_Name, 'not available') AS BrandGet
+                FROM
+                tbl_Sales_Delivery_Stock_Info AS oi
+                LEFT JOIN tbl_Product_Master AS pm
+                ON pm.Product_Id = oi.Item_Id
+                LEFT JOIN tbl_UOM AS u
+                ON u.Unit_Id = oi.Unit_Id
+                LEFT JOIN tbl_Brand_Master AS b
+                ON b.Brand_Id = pm.Brand
+                 WHERE
+                            CONVERT(DATE, oi.Do_Date) >= CONVERT(DATE, @from)
+                    	    AND
+                    	    CONVERT(DATE, oi.Do_Date) <= CONVERT(DATE, @to)
+              
+        )
+        SELECT 
+            so.*,
+            COALESCE(rm.Retailer_Name, 'unknown') AS Retailer_Name,
+            COALESCE(sp.Name, 'unknown') AS Delivery_Person_Name,
+            COALESCE(bm.BranchName, 'unknown') AS Branch_Name,
+            COALESCE(cb.Name, 'unknown') AS Created_BY_Name,
+            COALESCE(rmt.Route_Name, 'Unknown') AS Routename, 
+        	COALESCE(am.Area_Name, 'Unknown') AS AreaName,
+            COALESCE(rmt.Route_Id, 'Unknown') AS Route_Id,
+             COALESCE(rm.Area_Id, 'Unknown') AS Area_Id,
+               COALESCE(st.Status, 'Unknown') AS DeliveryStatusName,
+                 COALESCE(sgi.SO_Date,'Unkown') AS SalesDate,
+            COALESCE((
+                SELECT
+                    sd.*
+                FROM
+                    SALES_DETAILS AS sd
+                WHERE
+                    sd.Delivery_Order_Id = so.Do_No
+                FOR JSON PATH
+            ), '[]') AS Products_List
+            FROM 
+            tbl_Sales_Delivery_Gen_Info AS so
+            LEFT JOIN tbl_Retailers_Master AS rm
+            ON rm.Retailer_Id = so.Retailer_Id
+            	LEFT JOIN tbl_Status As st
+		  ON st.Status_Id = so.Delivery_Status 
+            LEFT JOIN tbl_Users AS sp
+            ON sp.UserId = so.Delivery_Person_Id
+            LEFT JOIN tbl_Branch_Master bm
+            ON bm.BranchId = so.Branch_Id
+            LEFT JOIN tbl_Users AS cb
+            ON cb.UserId = so.Created_by
+            LEFT JOIN tbl_Route_Master AS rmt
+            ON rmt.Route_Id = rm.Route_Id 
+        	LEFT JOIN tbl_Area_Master AS am
+        	ON am.Area_Id = rm.Area_Id
+            	LEFT JOIN tbl_Sales_Order_Gen_Info AS sgi 
+			ON sgi.So_Id=so.So_No
+            WHERE CONVERT(DATE, so.Do_Date) >= CONVERT(DATE, @from)
+            AND
+            CONVERT(DATE, so.Do_Date) <= CONVERT(DATE, @to) 
+           AND so.Cancel_Status =2`
+
             if (Retailer_Id) {
                 query += `
                 AND
             	so.Retailer_Id = @retailer `
             }
-            if (Number(Cancel_status) === 0 || Number(Cancel_status) === 1) {
-                query += `
-                AND
-            	so.Cancel_status = @cancel`
-            }
+
+          
             if (Created_by) {
                 query += `
                 AND
             	so.Created_by = @creater`
             }
-            if (Sales_Person_Id) {
+
+            if (Delivery_Person_Id) {
                 query += `
                 AND
-                so.Sales_Person_Id = @salesPerson`
+                so.Delivery_Person_Id = @Delivery_Person_Id`
             }
+
             if (Route_Id) {
                 query += `
                 AND
             	rmt.Route_Id = @Route_Id`
             }
+
             if (Area_Id) {
                 query += `
                 AND
@@ -656,7 +708,7 @@ const SaleOrder = () => {
             }
 
             query += `
-            ORDER BY CONVERT(DATETIME, so.So_Id) DESC`;
+            ORDER BY CONVERT(DATETIME, so.Do_Id) DESC`;
 
             const request = new sql.Request();
             request.input('from', Fromdate);
@@ -664,7 +716,7 @@ const SaleOrder = () => {
             request.input('retailer', Retailer_Id);
             request.input('cancel', Cancel_status);
             request.input('creater', Created_by);
-            request.input('salesPerson', Sales_Person_Id)
+            request.input('Delivery_Person_Id', sql.Int, Delivery_Person_Id);
             request.input('Route_Id', Route_Id)
             request.input('Area_Id', Area_Id)
 
@@ -692,12 +744,136 @@ const SaleOrder = () => {
     }
 
 
+    const deleteDeliveryOrder = async (req, res) => {
+        const { Order_Id, Do_Id } = req.body;
     
+        if (!Order_Id || !Do_Id) {
+            return invalidInput(res, 'Invalid Order_Id or Do_Id');
+        }
+    
+        try {
+            const request = new sql.Request()
+                .input('Order_No', sql.Int, Order_Id)  // For the delivery order
+                .input('Do_Id', sql.Int, Do_Id); // For the sales order deletion
+    
+            // First, update the Delivery Order table to set Cancel_Status
+            const updateOrderResult = await request.query(`
+                UPDATE tbl_Sales_Delivery_Gen_Info
+                SET Cancel_Status = 3
+                WHERE So_No = @Order_No;
+            `);
+    
+            let messageText = 'Order';
+    
+            if (updateOrderResult.rowsAffected[0] > 0) {
+                messageText += ' successfully moved to Sale Order.';
+            } else {
+                return failed(res, 'Failed to move the Delivery Order.');
+            }
+    
+            // Then, delete the sales order from tbl_Sales_Order_Gen_Info
+            const deleteSalesOrderResult = await request.query(`
+                DELETE FROM [tbl_Sales_Delivery_Stock_Info]
+                WHERE Do_No = @Do_Id;
+            `);
+    
+            if (deleteSalesOrderResult.rowsAffected[0] > 0) {
+                success(res, `${messageText} Sales Order deleted successfully.`);
+            } else {
+                noData(res, 'Failed to delete the Sales Order.');
+            }
+            
+        } catch (e) {
+            servError(e, res);
+        }
+    };
+    
+    
+    const editmobileApi = async (req, res) => {
+        const {
+            Do_Id, Retailer_Id, Delivery_Person_Id,
+         Delivery_Status,
+            Delivery_Time, Delivery_Location, Delivery_Latitude, Delivery_Longitude, Payment_Mode, Payment_Status, Payment_Ref_No
+        } = req.body;
+
+        const Do_Date = ISOString(req?.body?.Do_Date);
+    
+
+        if (
+            !checkIsNumber(Do_Id)
+            || !checkIsNumber(Retailer_Id)
+            || !checkIsNumber(Delivery_Person_Id)
+          
+        ) {
+            return invalidInput(res, 'Do_Id, Retailer_Id, Delivery_Person_Id, Created_by is Required')
+        }
+
+        const transaction = new sql.Transaction();
+
+        try {
+  
+            await transaction.begin();
+
+            const request = new sql.Request(transaction)
+                .input('doid', Do_Id)
+                .input('date', Do_Date)
+                .input('retailer', Retailer_Id)
+                .input('deliveryperson', Delivery_Person_Id)
+                .input('deliverystatus', Delivery_Status)
+                .input('deliveryTime', Delivery_Time)
+                .input('deliveryLocation', Delivery_Location)
+                .input('deliverylatitude', Delivery_Latitude)
+                .input('deliverylongitute', Delivery_Longitude)
+                .input('paymentMode', Payment_Mode)
+                .input('paymentStatus', Payment_Status)
+                .input('paymentrefno', Payment_Ref_No)
+                .input('Trans_Type', 'UPDATE')
+                .query(`
+                    UPDATE 
+                        tbl_Sales_Delivery_Gen_Info
+                    SET
+                        Do_Date = @date, 
+                        Retailer_Id = @retailer, 
+                        Delivery_Person_Id = @deliveryperson, 
+                        Delivery_Time=@deliveryTime,
+                        Delivery_Status=@deliverystatus,
+                       Delivery_Location=@deliveryLocation,
+                       Delivery_Latitude=@deliverylatitude,
+                       Delivery_Longitude=@deliverylongitute,
+                       Payment_Mode=@paymentMode,
+                       Payment_Status=@paymentStatus,
+                       Payment_Ref_No=@paymentrefno,
+                        Trans_Type = @Trans_Type
+                    WHERE
+                        Do_Id = @doid;
+                    `
+                );
+
+            const result = await request;
+
+            if (result.rowsAffected[0] === 0) {
+                throw new Error('Failed to update order, Try again')
+            }
+
+            await transaction.commit();
+            success(res, 'Changes Saved!')
+
+        } catch (e) {
+            if (transaction._aborted === false) {
+                await transaction.rollback();
+            }
+            servError(e, res)
+        }
+    }
+
+
     return {
-        saleOrderCreation,
+        salesDeliveryCreation,
         getSaleOrder,
-        editSaleOrder,
-        getDeliveryorder
+        editDeliveryOrder,
+        getDeliveryorder,
+        deleteDeliveryOrder,
+        editmobileApi
     }
 }
 

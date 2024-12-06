@@ -12,7 +12,7 @@ import UserModule from './userModule.mjs';
 import ReportRouter from './reports.mjs';
 import SalesRouter from './sales.mjs';
 import PurchaseRouter from './purchase.mjs'
-
+import DeliveryRouter from './delivery.mjs';
 const indexRouter = express.Router();
 
 indexRouter.use('/empAttendance', AttendanceRouter);
@@ -26,5 +26,8 @@ indexRouter.use('/purchase', PurchaseRouter);
 indexRouter.use('/taskManagement', projectRoute);
 indexRouter.use('/reports', ReportRouter)
 indexRouter.use('/userModule', UserModule);
+indexRouter.use('/delivery', DeliveryRouter);
+
+
 
 export default indexRouter;

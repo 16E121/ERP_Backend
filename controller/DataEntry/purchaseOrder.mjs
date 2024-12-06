@@ -1,6 +1,7 @@
 import sql from 'mssql'
 import { servError, dataFound, noData, success, failed, invalidInput } from '../../res.mjs';
-import { checkIsNumber, ISOString } from '../../helper_functions.mjs';
+import { checkIsNumber, createPadString, ISOString } from '../../helper_functions.mjs';
+import { getNextId } from '../../middleware/miniAPIs.mjs';
 
 const PurchaseOrderDataEntry = () => {
 
@@ -21,7 +22,7 @@ const PurchaseOrderDataEntry = () => {
                     	WHERE
                     		OrderId IN (
                     			SELECT 
-                    				pgi.Id
+                    				pgi.Sno
                     			FROM
                     				tbl_PurchaseOrderGeneralDetails AS pgi
                     			WHERE
@@ -37,7 +38,7 @@ const PurchaseOrderDataEntry = () => {
                     	WHERE
                     		OrderId IN (
                     			SELECT 
-                    				pgi.Id
+                    				pgi.Sno
                     			FROM
                     				tbl_PurchaseOrderGeneralDetails AS pgi
                     			WHERE
@@ -53,7 +54,7 @@ const PurchaseOrderDataEntry = () => {
                     	WHERE
                     		OrderId IN (
                     			SELECT 
-                    				pgi.Id
+                    				pgi.Sno
                     			FROM
                     				tbl_PurchaseOrderGeneralDetails AS pgi
                     			WHERE
@@ -66,17 +67,17 @@ const PurchaseOrderDataEntry = () => {
                     	pgi.*,
                     	ISNULL((
                     		SELECT JSON_QUERY((
-                    			SELECT * FROM ITEM_DETAILS WHERE ITEM_DETAILS.OrderId = pgi.Id FOR JSON AUTO)
+                    			SELECT * FROM ITEM_DETAILS WHERE ITEM_DETAILS.OrderId = pgi.Sno FOR JSON AUTO)
                     		)
                     	), '[]') AS ItemDetails,
                     	ISNULL((
                     		SELECT JSON_QUERY((
-                    			SELECT * FROM DELIVERY_DETAILS WHERE DELIVERY_DETAILS.OrderId = pgi.Id FOR JSON AUTO)
+                    			SELECT * FROM DELIVERY_DETAILS WHERE DELIVERY_DETAILS.OrderId = pgi.Sno FOR JSON AUTO)
                     		)
                     	), '[]') AS DeliveryDetails,
                     	ISNULL((
                     		SELECT JSON_QUERY((
-                    			SELECT * FROM TRANSPOTER_DETAILS WHERE TRANSPOTER_DETAILS.OrderId = pgi.Id FOR JSON AUTO)
+                    			SELECT * FROM TRANSPOTER_DETAILS WHERE TRANSPOTER_DETAILS.OrderId = pgi.Sno FOR JSON AUTO)
                     		)
                     	), '[]') AS TranspoterDetails
                     FROM
@@ -111,10 +112,14 @@ const PurchaseOrderDataEntry = () => {
 
         const OrderDetails = req.body.OrderDetails ?? {};
         const {
+            BranchId,
             LoadingDate = '',
             TradeConfirmDate = '',
+            OwnerId = 0,
             OwnerName = '',
+            BrokerId = 0,
             BrokerName = '',
+            PartyId = '',
             PartyName = '',
             PartyAddress = '',
             PaymentCondition = '',
@@ -122,6 +127,10 @@ const PurchaseOrderDataEntry = () => {
             OrderStatus = '',
             CreatedBy = ''
         } = OrderDetails;
+
+        if (!checkIsNumber(BranchId)) {
+            return invalidInput(res, 'Select Branch')
+        }
 
         const OrderItems = Array.isArray(req.body.OrderItems) ? req.body.OrderItems : [];
         const DelivdryDetails = Array.isArray(req.body.DelivdryDetails) ? req.body.DelivdryDetails : [];
@@ -131,13 +140,47 @@ const PurchaseOrderDataEntry = () => {
 
         try {
 
+            const currentYear = new Date().getFullYear();
+
+            const newOrderId = Number((await new sql.Request()
+                .input('BranchId', BranchId)
+                .input('currentYear', currentYear)
+                .query(`
+                    SELECT 
+                        COALESCE(MAX(Id), 0) AS MaxId
+                    FROM 
+                        tbl_PurchaseOrderGeneralDetails
+                    WHERE
+                        BranchId = @BranchId
+                        AND
+                        PoYear = @currentYear`
+                ))?.recordset[0]?.MaxId) + 1;
+
+            if (!checkIsNumber(newOrderId)) throw new Error('Failed to get Order Id');
+
+            const PO_ID = 'PO_' + BranchId + '_' + currentYear + '_' + createPadString(newOrderId, 4);
+
+            const getSno = await getNextId({ table: 'tbl_PurchaseOrderGeneralDetails', column: 'Sno' });
+
+            if (!getSno.status || !checkIsNumber(getSno.MaxId)) throw new Error('Failed to get Sno');
+
+            const Sno = getSno.MaxId;
+
             await transaction.begin();
 
             const OrderDetailsInsert = await new sql.Request(transaction)
+                .input('Sno', Sno)
+                .input('Id', newOrderId)
+                .input('PoYear', currentYear)
+                .input('BranchId', BranchId)
+                .input('PO_ID', PO_ID)
                 .input('LoadingDate', LoadingDate)
                 .input('TradeConfirmDate', TradeConfirmDate)
+                .input('OwnerId', Number(OwnerId))
                 .input('OwnerName', OwnerName)
+                .input('BrokerId', Number(BrokerId))
                 .input('BrokerName', BrokerName)
+                .input('PartyId', PartyId)
                 .input('PartyName', PartyName)
                 .input('PartyAddress', PartyAddress)
                 .input('PaymentCondition', PaymentCondition)
@@ -146,21 +189,22 @@ const PurchaseOrderDataEntry = () => {
                 .input('CreatedBy', CreatedBy)
                 .query(`
                     INSERT INTO tbl_PurchaseOrderGeneralDetails (
-                        LoadingDate, TradeConfirmDate, OwnerName, BrokerName, PartyName, 
+                        Sno, Id, PoYear, BranchId, PO_ID,
+                        LoadingDate, TradeConfirmDate, OwnerId, OwnerName, BrokerId, BrokerName, PartyId, PartyName, 
                         PartyAddress, PaymentCondition, Remarks, OrderStatus, CreatedBy
                     ) VALUES (
-                        @LoadingDate, @TradeConfirmDate, @OwnerName, @BrokerName, @PartyName, 
+                        @Sno, @Id, @PoYear, @BranchId, @PO_ID,
+                        @LoadingDate, @TradeConfirmDate, @OwnerId, @OwnerName, @BrokerId, @BrokerName, @PartyId, @PartyName, 
                         @PartyAddress, @PaymentCondition, @Remarks, @OrderStatus, @CreatedBy
-                    );
-                    
-                    SELECT SCOPE_IDENTITY() AS OrderId;`
+                    );`
                 );
-
+            // SELECT SCOPE_IDENTITY() AS OrderId;
             if (OrderDetailsInsert.rowsAffected[0] == 0) {
                 throw new Error('Failed to insert order details')
             }
 
-            const OrderId = OrderDetailsInsert?.recordset[0]?.OrderId;
+            // const OrderId = OrderDetailsInsert?.recordset[0]?.OrderId;
+            const OrderId = Sno;
 
             for (let i = 0; i < OrderItems.length; i++) {
                 const item = OrderItems[i];
@@ -196,6 +240,7 @@ const PurchaseOrderDataEntry = () => {
                     .input('indexValue', Number(delivery?.indexValue))
                     .input('OrderId', OrderId)
                     .input('TransporterIndex', Number(delivery?.TransporterIndex))
+                    .input('LocationId', Number(delivery?.LocationId))
                     .input('Location', delivery?.Location)
                     .input('ArrivalDate', delivery?.ArrivalDate)
                     .input('ItemId', Number(delivery?.ItemId))
@@ -211,10 +256,10 @@ const PurchaseOrderDataEntry = () => {
                     .input('CreatedBy', Number(delivery?.CreatedBy))
                     .query(`
                         INSERT INTO tbl_PurchaseOrderDeliveryDetails (
-                            indexValue, OrderId, Location, TransporterIndex, ArrivalDate, ItemId, ItemName, Concern, BillNo, BillDate, 
+                            indexValue, OrderId, LocationId, Location, TransporterIndex, ArrivalDate, ItemId, ItemName, Concern, BillNo, BillDate, 
                             Quantity, Weight, Units, BatchLocation, PendingQuantity, CreatedBy
                         ) VALUES (
-                            @indexValue, @OrderId, @Location, @TransporterIndex, @ArrivalDate, @ItemId, @ItemName, @Concern, @BillNo, @BillDate,
+                            @indexValue, @OrderId, @LocationId, @Location, @TransporterIndex, @ArrivalDate, @ItemId, @ItemName, @Concern, @BillNo, @BillDate,
                             @Quantity, @Weight, @Units, @BatchLocation, @PendingQuantity, @CreatedBy
                         )
                     `);
@@ -275,11 +320,14 @@ const PurchaseOrderDataEntry = () => {
         } = req.body;
 
         const {
-            Id = '',
+            Sno = '',
             LoadingDate = '',
             TradeConfirmDate = '',
+            OwnerId = 0,
             OwnerName = '',
+            BrokerId = 0,
             BrokerName = '',
+            PartyId = 0,
             PartyName = '',
             PartyAddress = '',
             PaymentCondition = '',
@@ -295,11 +343,14 @@ const PurchaseOrderDataEntry = () => {
 
             // Update Order General Details
             const updateOrderDetails = await new sql.Request(transaction)
-                .input('OrderId', Id)
+                .input('OrderId', Sno)
                 .input('LoadingDate', LoadingDate)
                 .input('TradeConfirmDate', TradeConfirmDate)
+                .input('OwnerId', Number(OwnerId))
                 .input('OwnerName', OwnerName)
+                .input('BrokerId', Number(BrokerId))
                 .input('BrokerName', BrokerName)
+                .input('PartyId', PartyId)
                 .input('PartyName', PartyName)
                 .input('PartyAddress', PartyAddress)
                 .input('PaymentCondition', PaymentCondition)
@@ -308,11 +359,12 @@ const PurchaseOrderDataEntry = () => {
                 .input('CreatedBy', CreatedBy)
                 .query(`
                     UPDATE tbl_PurchaseOrderGeneralDetails
-                    SET LoadingDate = @LoadingDate, TradeConfirmDate = @TradeConfirmDate, 
-                        OwnerName = @OwnerName, BrokerName = @BrokerName, PartyName = @PartyName,
+                    SET LoadingDate = @LoadingDate, TradeConfirmDate = @TradeConfirmDate,
+                        OwnerId = @OwnerId, BrokerId = @BrokerId, 
+                        OwnerName = @OwnerName, BrokerName = @BrokerName, PartyId = @PartyId, PartyName = @PartyName,
                         PartyAddress = @PartyAddress, PaymentCondition = @PaymentCondition, 
                         Remarks = @Remarks, OrderStatus = @OrderStatus, CreatedBy = @CreatedBy
-                    WHERE Id = @OrderId
+                    WHERE Sno = @OrderId
                 `);
 
             if (updateOrderDetails.rowsAffected[0] === 0) {
@@ -320,7 +372,7 @@ const PurchaseOrderDataEntry = () => {
             }
 
             await new sql.Request(transaction)
-                .input('OrderId', Id)
+                .input('OrderId', Sno)
                 .query(`
                     DELETE FROM tbl_PurchaseOrderItemDetails WHERE OrderId = @OrderId;
                     DELETE FROM tbl_PurchaseOrderDeliveryDetails WHERE OrderId = @OrderId;
@@ -332,7 +384,7 @@ const PurchaseOrderDataEntry = () => {
 
                 const result = await new sql.Request(transaction)
                     .input('Sno', i)
-                    .input('OrderId', Id)
+                    .input('OrderId', Sno)
                     .input('ItemId', Number(item?.ItemId))
                     .input('ItemName', item?.ItemName)
                     .input('Weight', Number(item?.Weight))
@@ -360,9 +412,10 @@ const PurchaseOrderDataEntry = () => {
 
                 const result = await new sql.Request(transaction)
                     .input('indexValue', Number(delivery?.indexValue))
-                    .input('OrderId', Id)
+                    .input('OrderId', Sno)
                     .input('Id', delivery?.Id)
                     .input('TransporterIndex', Number(delivery?.TransporterIndex))
+                    .input('LocationId', Number(delivery?.LocationId))
                     .input('Location', delivery?.Location)
                     .input('ArrivalDate', delivery?.ArrivalDate)
                     .input('ItemId', Number(delivery?.ItemId))
@@ -378,10 +431,10 @@ const PurchaseOrderDataEntry = () => {
                     .input('CreatedBy', Number(delivery?.CreatedBy))
                     .query(`
                         INSERT INTO tbl_PurchaseOrderDeliveryDetails (
-                            indexValue, OrderId, Location, TransporterIndex, ArrivalDate, ItemId, ItemName, Concern, BillNo, BillDate, 
+                            indexValue, OrderId, LocationId, Location, TransporterIndex, ArrivalDate, ItemId, ItemName, Concern, BillNo, BillDate, 
                             Quantity, Weight, Units, BatchLocation, PendingQuantity, CreatedBy
                         ) VALUES (
-                            @indexValue, @OrderId, @Location, @TransporterIndex, @ArrivalDate, @ItemId, @ItemName, @Concern, @BillNo, @BillDate,
+                            @indexValue, @OrderId, @LocationId, @Location, @TransporterIndex, @ArrivalDate, @ItemId, @ItemName, @Concern, @BillNo, @BillDate,
                             @Quantity, @Weight, @Units, @BatchLocation, @PendingQuantity, @CreatedBy
                         )
                     `);
@@ -396,7 +449,7 @@ const PurchaseOrderDataEntry = () => {
                 const transporter = TranspoterDetails[i];
 
                 const result = await new sql.Request(transaction)
-                    .input('OrderId', Id)
+                    .input('OrderId', Sno)
                     .input('indexValue', Number(transporter?.indexValue))
                     .input('Id', transporter?.Id)
                     .input('Loading_Load', transporter?.Loading_Load)
@@ -432,6 +485,20 @@ const PurchaseOrderDataEntry = () => {
             servError(e, res);
         }
     };
+
+    const godownLocation = async (req, res) => {
+        try {
+            const result = await sql.query('SELECT Godown_Id, Godown_Name FROM tbl_Godown_Master');
+
+            if (result.recordset.length > 0) {
+                dataFound(res, result.recordset);
+            } else {
+                noData(res)
+            }
+        } catch (e) {
+            servError(e, res);
+        }
+    }
 
     const updateArrivalDetails = async (req, res) => {
         const { OrderId, DelivdryDetails, TranspoterDetails } = req.body;
@@ -538,7 +605,7 @@ const PurchaseOrderDataEntry = () => {
 
     const deleteOrderPermanantly = async (req, res) => {
         const { OrderId } = req.body;
-        
+
         if (!checkIsNumber(OrderId)) return invalidInput(res, 'OrderId is required');
 
         const transaction = new sql.Transaction();
@@ -631,6 +698,7 @@ const PurchaseOrderDataEntry = () => {
         getPurchaseOrder,
         createPurchaseOrder,
         updatePurchaseOrder,
+        godownLocation,
         updateArrivalDetails,
         deleteOrderPermanantly,
     }

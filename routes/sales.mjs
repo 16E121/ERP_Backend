@@ -8,7 +8,7 @@ const SalesRouter = express.Router();
 SalesRouter.get('/saleOrder', salesOrder.getSaleOrder);
 SalesRouter.post('/saleOrder', salesOrder.saleOrderCreation);
 SalesRouter.put('/saleOrder', salesOrder.editSaleOrder);
-
+SalesRouter.get('/saleDelivery', salesOrder.getDeliveryorder);
 
 SalesRouter.get('/partyWiseReport', dbconnect, salesEntry.partyWiseSalesReport);
 SalesRouter.get('/partyWiseReport/details', dbconnect, salesEntry.partyDetailsReport);
