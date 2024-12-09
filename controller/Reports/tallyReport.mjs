@@ -1,7 +1,7 @@
 import sql from 'mssql';
 import { servError, failed, invalidInput, dataFound, noData, success } from '../../res.mjs';
 import { checkIsNumber, ISOString } from '../../helper_functions.mjs';
-
+import { getLOL, getLOS } from '../../middleware/miniAPIs.mjs';
 
 const QPayReport = () => {
 
@@ -325,6 +325,38 @@ const QPayReport = () => {
 
     }
 
+    const getTallyLOLData = async (req, res) => {
+        
+        try{
+            const lolData = await getLOL(req.db);
+
+            if (lolData.status && lolData.dataArray.length > 0) {
+                dataFound(res, lolData.dataArray);
+            } else {
+                noData(res)
+            }
+
+        } catch (e) {
+            servError(e, res);
+        }
+    }
+
+    const getTallyLOSData = async (req, res) => {
+        
+        try{
+            const lolData = await getLOL(req.db);
+
+            if (lolData.status && lolData.dataArray.length > 0) {
+                dataFound(res, lolData.dataArray);
+            } else {
+                noData(res)
+            }
+
+        } catch (e) {
+            servError(e, res);
+        }
+    }
+
 
     return {
         getQpayData,
@@ -332,7 +364,9 @@ const QPayReport = () => {
         getQPayColumns,
         getSalesData,
         getStockItemBased,
-        productBasedSalesDetails
+        productBasedSalesDetails,
+        getTallyLOLData,
+        getTallyLOSData,
     }
 
 }

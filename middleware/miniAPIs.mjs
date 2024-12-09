@@ -449,3 +449,57 @@ export const getLargeData = async (exeQuery, db) => {
         return [];
     }
 }
+
+export const getLOL = async (db) => {
+    if (!db) return miniResponse({ status: false, others: { Err: 'db config is missing' } });
+
+    try {
+        const result = await getLargeData(
+            `SELECT * FROM tbl_LOL_Excel`, db
+        );
+
+        if (result.recordset.length > 0) {
+            return miniResponse({
+                status: true,
+                dataArray: result.recordset,
+            })
+        } else {
+            return miniResponse({
+                status: false,
+                others: {
+                    message: 'LOL data not found'
+                }
+            })
+        }
+    } catch (e) {
+        console.log(e);
+        return miniResponse({ status: false, others: { Err: 'Failed to fetch LOL' } })
+    }
+}
+
+export const getLOS = async (db) => {
+    if (!db) return miniResponse({ status: false, others: { Err: 'db config is missing' } });
+
+    try {
+        const result = await getLargeData(
+            `SELECT * FROM tbl_LOS_Excel`, db
+        );
+
+        if (result.recordset.length > 0) {
+            return miniResponse({
+                status: true,
+                dataArray: result.recordset,
+            })
+        } else {
+            return miniResponse({
+                status: false,
+                others: {
+                    message: 'LOL data not found'
+                }
+            })
+        }
+    } catch (e) {
+        console.log(e);
+        return miniResponse({ status: false, others: { Err: 'Failed to fetch LOL' } })
+    }
+}

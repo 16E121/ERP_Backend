@@ -1,7 +1,7 @@
 import sql from 'mssql'
 import { servError, dataFound, noData, success, failed, invalidInput } from '../../res.mjs';
 import { checkIsNumber, createPadString, ISOString } from '../../helper_functions.mjs';
-import { getNextId } from '../../middleware/miniAPIs.mjs';
+import { getLOL, getLOS, getNextId } from '../../middleware/miniAPIs.mjs';
 
 const PurchaseOrderDataEntry = () => {
 
@@ -14,13 +14,25 @@ const PurchaseOrderDataEntry = () => {
                 .input('Fromdate', Fromdate)
                 .input('Todate', Todate)
                 .query(`
-                    WITH ITEM_DETAILS AS (
+                    WITH LOLData AS (
+                        SELECT * 
+                        FROM tbl_Ledger_LOL
+                    ), LOSData AS (
+                        SELECT * 
+                        FROM tbl_Stock_LOS
+                    ), ITEM_DETAILS AS (
                     	SELECT 
-                    		*
+                    		i.*,
+                            COALESCE(los.Stock_Item, 'Not Found') AS Stock_Item,
+                            COALESCE(los.Stock_Group, 'Not Found') AS Stock_Group
                     	FROM
-                    		tbl_PurchaseOrderItemDetails
+                    		tbl_PurchaseOrderItemDetails AS i
+                            LEFT JOIN tbl_Product_Master AS p
+                            ON i.ItemId = p.Product_Id
+                            LEFT JOIN tbl_Stock_LOS AS los
+                            ON los.Stock_Tally_Id = p.ERP_Id
                     	WHERE
-                    		OrderId IN (
+                    		i.OrderId IN (
                     			SELECT 
                     				pgi.Sno
                     			FROM
@@ -32,9 +44,15 @@ const PurchaseOrderDataEntry = () => {
                     		)
                     ), DELIVERY_DETAILS AS (
                     	SELECT 
-                    		*
+                    		d.*,
+                            COALESCE(los.Stock_Item, 'Not Found') AS Stock_Item,
+                            COALESCE(los.Stock_Group, 'Not Found') AS Stock_Group
                     	FROM
-                    		tbl_PurchaseOrderDeliveryDetails
+                    		tbl_PurchaseOrderDeliveryDetails AS d
+                            LEFT JOIN tbl_Product_Master AS p
+                            ON d.ItemId = p.Product_Id
+                            LEFT JOIN tbl_Stock_LOS AS los
+                            ON los.Stock_Tally_Id = p.ERP_Id
                     	WHERE
                     		OrderId IN (
                     			SELECT 
@@ -65,6 +83,8 @@ const PurchaseOrderDataEntry = () => {
                     )
                     SELECT 
                     	pgi.*,
+                        COALESCE(lol.Ledger_Name, 'Not found') AS Ledger_Name,
+                        COALESCE(lol.Party_District, 'Not found') AS Party_District,
                     	ISNULL((
                     		SELECT JSON_QUERY((
                     			SELECT * FROM ITEM_DETAILS WHERE ITEM_DETAILS.OrderId = pgi.Sno FOR JSON AUTO)
@@ -82,6 +102,10 @@ const PurchaseOrderDataEntry = () => {
                     	), '[]') AS TranspoterDetails
                     FROM
                     	tbl_PurchaseOrderGeneralDetails AS pgi
+                        LEFT JOIN tbl_Retailers_Master AS r
+                        ON r.Retailer_Id = pgi.PartyId
+                        LEFT JOIN LOLData AS lol
+                        ON lol.Ledger_Tally_Id = r.ERP_Id
                     WHERE
                     	CONVERT(DATE, pgi.TradeConfirmDate) >= CONVERT(DATE, @Fromdate)
                     	AND
@@ -252,15 +276,14 @@ const PurchaseOrderDataEntry = () => {
                     .input('Weight', Number(delivery?.Weight))
                     .input('Units', delivery?.Units)
                     .input('BatchLocation', delivery?.BatchLocation)
-                    .input('PendingQuantity', Number(delivery?.PendingQuantity))
                     .input('CreatedBy', Number(delivery?.CreatedBy))
                     .query(`
                         INSERT INTO tbl_PurchaseOrderDeliveryDetails (
                             indexValue, OrderId, LocationId, Location, TransporterIndex, ArrivalDate, ItemId, ItemName, Concern, BillNo, BillDate, 
-                            Quantity, Weight, Units, BatchLocation, PendingQuantity, CreatedBy
+                            Quantity, Weight, Units, BatchLocation, CreatedBy
                         ) VALUES (
                             @indexValue, @OrderId, @LocationId, @Location, @TransporterIndex, @ArrivalDate, @ItemId, @ItemName, @Concern, @BillNo, @BillDate,
-                            @Quantity, @Weight, @Units, @BatchLocation, @PendingQuantity, @CreatedBy
+                            @Quantity, @Weight, @Units, @BatchLocation, @CreatedBy
                         )
                     `);
 
@@ -427,15 +450,14 @@ const PurchaseOrderDataEntry = () => {
                     .input('Weight', Number(delivery?.Weight))
                     .input('Units', delivery?.Units)
                     .input('BatchLocation', delivery?.BatchLocation)
-                    .input('PendingQuantity', Number(delivery?.PendingQuantity))
                     .input('CreatedBy', Number(delivery?.CreatedBy))
                     .query(`
                         INSERT INTO tbl_PurchaseOrderDeliveryDetails (
                             indexValue, OrderId, LocationId, Location, TransporterIndex, ArrivalDate, ItemId, ItemName, Concern, BillNo, BillDate, 
-                            Quantity, Weight, Units, BatchLocation, PendingQuantity, CreatedBy
+                            Quantity, Weight, Units, BatchLocation, CreatedBy
                         ) VALUES (
                             @indexValue, @OrderId, @LocationId, @Location, @TransporterIndex, @ArrivalDate, @ItemId, @ItemName, @Concern, @BillNo, @BillDate,
-                            @Quantity, @Weight, @Units, @BatchLocation, @PendingQuantity, @CreatedBy
+                            @Quantity, @Weight, @Units, @BatchLocation, @CreatedBy
                         )
                     `);
 

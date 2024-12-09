@@ -34,7 +34,9 @@ ReportRouter.get('/tallyReports/productBased', dbconnect, tallyReport.productBas
 ReportRouter.get('/tallyReports/qpay/columnVisiblity', tallyReport.getQPayColumns)
 ReportRouter.post('/tallyReports/qpay/columnVisiblity', tallyReport.postColumnVisiblity)
 
-ReportRouter.get('/tallyReports/qPay/salesTransaction', tallyReport.getSalesData)
+ReportRouter.get('/tallyReports/qPay/salesTransaction', tallyReport.getSalesData);
+ReportRouter.get('/tallyLOL', tallyReport.getTallyLOLData);
+ReportRouter.get('/tallyLOS', tallyReport.getTallyLOSData);
 
 
 export default ReportRouter;
