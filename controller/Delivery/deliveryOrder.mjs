@@ -21,6 +21,9 @@ const taxCalc = (method = 1, amount = 0, percentage = 0) => {
 }
 
 const SaleOrder = () => {
+    
+    
+    
     const salesDeliveryCreation = async (req, res) => {
         const {
             Retailer_Id, Delivery_Person_Id, Branch_Id,
@@ -650,7 +653,7 @@ const SaleOrder = () => {
                 FROM
                     SALES_DETAILS AS sd
                 WHERE
-                    sd.Delivery_Order_Id = so.Do_No
+                    sd.Delivery_Order_Id = so.Do_Id
                 FOR JSON PATH
             ), '[]') AS Products_List
             FROM 
@@ -674,7 +677,7 @@ const SaleOrder = () => {
             WHERE CONVERT(DATE, so.Do_Date) >= CONVERT(DATE, @from)
             AND
             CONVERT(DATE, so.Do_Date) <= CONVERT(DATE, @to) 
-           AND so.Cancel_Status =2`
+      `
 
             if (Retailer_Id) {
                 query += `
@@ -753,36 +756,32 @@ const SaleOrder = () => {
     
         try {
             const request = new sql.Request()
-                .input('Order_No', sql.Int, Order_Id)  // For the delivery order
-                .input('Do_Id', sql.Int, Do_Id); // For the sales order deletion
+                .input('Order_No', sql.Int, Order_Id)  
+                .input('Do_Id', sql.Int, Do_Id);    
     
-            // First, update the Delivery Order table to set Cancel_Status
-            const updateOrderResult = await request.query(`
-                UPDATE tbl_Sales_Delivery_Gen_Info
-                SET Cancel_Status = 3
-                WHERE So_No = @Order_No;
+
+            const deleteDeliveryResult = await request.query(`
+                DELETE FROM tbl_Sales_Delivery_Gen_Info
+                WHERE Do_Id = @Do_Id;
             `);
     
-            let messageText = 'Order';
+            if (deleteDeliveryResult.rowsAffected[0] > 0) {
     
-            if (updateOrderResult.rowsAffected[0] > 0) {
-                messageText += ' successfully moved to Sale Order.';
+                const deleteStockInfoResult = await request.query(`
+                    DELETE FROM tbl_Sales_Delivery_Stock_Info
+                    WHERE Delivery_Order_Id = @Do_Id;
+                `);
+    
+                if (deleteStockInfoResult.rowsAffected[0] > 0) {
+                    success(res, 'Sales Order and Delivery Order deleted successfully.');
+                } else {
+                    noData(res, 'Failed to delete the Sales Order from tbl_Sales_Delivery_Stock_Info.');
+                }
             } else {
-                return failed(res, 'Failed to move the Delivery Order.');
+        
+                return failed(res, 'Failed to delete the Delivery Order from tbl_Sales_Delivery_Gen_Info.');
             }
     
-            // Then, delete the sales order from tbl_Sales_Order_Gen_Info
-            const deleteSalesOrderResult = await request.query(`
-                DELETE FROM [tbl_Sales_Delivery_Stock_Info]
-                WHERE Do_No = @Do_Id;
-            `);
-    
-            if (deleteSalesOrderResult.rowsAffected[0] > 0) {
-                success(res, `${messageText} Sales Order deleted successfully.`);
-            } else {
-                noData(res, 'Failed to delete the Sales Order.');
-            }
-            
         } catch (e) {
             servError(e, res);
         }
