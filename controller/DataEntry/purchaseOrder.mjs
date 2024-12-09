@@ -267,23 +267,24 @@ const PurchaseOrderDataEntry = () => {
                     .input('LocationId', Number(delivery?.LocationId))
                     .input('Location', delivery?.Location)
                     .input('ArrivalDate', delivery?.ArrivalDate)
-                    .input('ItemId', Number(delivery?.ItemId))
+                    .input('ItemId', Number(delivery?.ItemId) ?? '')
                     .input('ItemName', delivery?.ItemName)
                     .input('Concern', delivery?.Concern)
                     .input('BillNo', delivery?.BillNo)
                     .input('BillDate', delivery?.BillDate)
-                    .input('Quantity', Number(delivery?.Quantity))
-                    .input('Weight', Number(delivery?.Weight))
+                    .input('BilledRate', Number(delivery?.BilledRate) ?? 0)
+                    .input('Quantity', Number(delivery?.Quantity) ?? 0)
+                    .input('Weight', Number(delivery?.Weight) ?? 0)
                     .input('Units', delivery?.Units)
                     .input('BatchLocation', delivery?.BatchLocation)
                     .input('CreatedBy', Number(delivery?.CreatedBy))
                     .query(`
                         INSERT INTO tbl_PurchaseOrderDeliveryDetails (
                             indexValue, OrderId, LocationId, Location, TransporterIndex, ArrivalDate, ItemId, ItemName, Concern, BillNo, BillDate, 
-                            Quantity, Weight, Units, BatchLocation, CreatedBy
+                            BilledRate, Quantity, Weight, Units, BatchLocation, CreatedBy
                         ) VALUES (
                             @indexValue, @OrderId, @LocationId, @Location, @TransporterIndex, @ArrivalDate, @ItemId, @ItemName, @Concern, @BillNo, @BillDate,
-                            @Quantity, @Weight, @Units, @BatchLocation, @CreatedBy
+                            @BilledRate, @Quantity, @Weight, @Units, @BatchLocation, @CreatedBy
                         )
                     `);
 
@@ -446,6 +447,7 @@ const PurchaseOrderDataEntry = () => {
                     .input('Concern', delivery?.Concern)
                     .input('BillNo', delivery?.BillNo)
                     .input('BillDate', delivery?.BillDate)
+                    .input('BilledRate', delivery?.BilledRate)
                     .input('Quantity', Number(delivery?.Quantity))
                     .input('Weight', Number(delivery?.Weight))
                     .input('Units', delivery?.Units)
@@ -454,10 +456,10 @@ const PurchaseOrderDataEntry = () => {
                     .query(`
                         INSERT INTO tbl_PurchaseOrderDeliveryDetails (
                             indexValue, OrderId, LocationId, Location, TransporterIndex, ArrivalDate, ItemId, ItemName, Concern, BillNo, BillDate, 
-                            Quantity, Weight, Units, BatchLocation, CreatedBy
+                            BilledRate, Quantity, Weight, Units, BatchLocation, CreatedBy
                         ) VALUES (
                             @indexValue, @OrderId, @LocationId, @Location, @TransporterIndex, @ArrivalDate, @ItemId, @ItemName, @Concern, @BillNo, @BillDate,
-                            @Quantity, @Weight, @Units, @BatchLocation, @CreatedBy
+                            @BilledRate, @Quantity, @Weight, @Units, @BatchLocation, @CreatedBy
                         )
                     `);
 
