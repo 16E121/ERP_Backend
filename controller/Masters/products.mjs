@@ -6,6 +6,7 @@ import getImage from '../../middleware/getImageIfExist.mjs';
 import fileRemoverMiddleware from '../../middleware/unSyncFile.mjs';
 import { checkIsNumber } from '../../helper_functions.mjs';
 import { getNextId } from '../../middleware/miniAPIs.mjs';
+import SPCall from '../../middleware/SPcall.mjs';
 
 dotenv.config();
 
@@ -444,6 +445,15 @@ const sfProductController = () => {
         }
     }
 
+    const syncTallyLOS = async (req, res) => {
+        try {
+            await SPCall({ SPName: 'Product_Sync' });
+            success(res, 'Sync success')
+        } catch (e) {
+            servError(e, res);
+        }
+    }
+
 
     return {
         getProducts,
@@ -453,7 +463,8 @@ const sfProductController = () => {
         postProductsWithImage,
         postProductsWithoutImage,
         updateProduct,
-        updateProductImages
+        updateProductImages,
+        syncTallyLOS
     }
 }
 

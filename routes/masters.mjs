@@ -75,6 +75,7 @@ MastersRouter.get('/retailers/closingStock/areaBased', retailerClosingStock.clos
 MastersRouter.get('/retailers/closingStock/myEntry', retailerClosingStock.getSalesPersonEnteredClosingStock);
 MastersRouter.post('/retailers/closingStock', retailerClosingStock.closeingStock);
 MastersRouter.put('/retailers/closingStock', retailerClosingStock.closeingStockUpdate);
+MastersRouter.post('/retailers/lolSync', retailers.syncTallyLOL);
 
 
 MastersRouter.get('/products', products.getProducts);
@@ -85,6 +86,7 @@ MastersRouter.put('/products/productImage', products.updateProductImages);
 MastersRouter.get('/products/grouped', products.getGroupedProducts);
 MastersRouter.get('/products/productGroups', products.getProductGroups);
 MastersRouter.get('/products/packs', products.getProductPacks);
+MastersRouter.post('/products/losSync', products.syncTallyLOS);
 
 
 MastersRouter.get('/routes', retailerRoutes.getRoutes);

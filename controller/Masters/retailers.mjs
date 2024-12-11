@@ -8,6 +8,7 @@ import copyImageMiddleware from '../../middleware/copyMiddleware.mjs';
 import getImage from '../../middleware/getImageIfExist.mjs';
 import dotenv from 'dotenv';
 import { checkIsNumber } from '../../helper_functions.mjs';
+import SPCall from '../../middleware/SPcall.mjs';
 dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
@@ -105,8 +106,6 @@ const RetailerControll = () => {
             servError(e, res)
         }
     }
-
-
 
     const getRetailerDropDown = async (req, res) => {
         const { isRetailer = 1, isVendor = 0 } = req.query;
@@ -790,6 +789,15 @@ const RetailerControll = () => {
         }
     }
 
+    const syncTallyLOL = async (req, res) => {
+        try {
+            await SPCall({ SPName: 'Ledger_Sync' });
+            success(res, 'Sync success')
+        } catch (e) {
+            servError(e, res);
+        }
+    }
+
     return {
         getSFCustomers,
         getRetailerDropDown,
@@ -801,6 +809,7 @@ const RetailerControll = () => {
         getRetailerInfo,
         getRetailerInfoWithClosingStock,
         convertVisitLogToRetailer,
+        syncTallyLOL
     }
 }
 
