@@ -659,6 +659,39 @@ const PurchaseOrderDataEntry = () => {
         }
     }
 
+    const getDeliveryByPartyId = async (req, res) => {
+        const { VendorId } = req.query;
+
+        try {
+
+            if (!checkIsNumber(VendorId)) return invalidInput(res, 'Select Vendor');
+
+            const request = new sql.Request()
+                .input('VendorId', VendorId)
+                .query(`
+                    SELECT 
+                        d.*,
+                        COALESCE(g.PO_ID, 'not found') AS PO_ID, 
+                        COALESCE(g.Sno, 'not found') AS OrderPK 
+                    FROM tbl_PurchaseOrderDeliveryDetails AS d
+                    LEFT JOIN tbl_PurchaseOrderGeneralDetails AS g
+                    ON d.OrderId = g.Sno
+                    WHERE 
+                        g.PartyId = @VendorId
+                        AND g.OrderStatus = 'Completed'
+                    ORDER BY d.OrderId;`
+                    );
+
+            const result = await request;
+
+            if (result.recordset.length > 0) dataFound(res, result.recordset)
+            else noData(res)
+
+        } catch (e) {
+            servError(e, res);
+        }
+    }
+
     // const getPurchaseDetailsDropdown = async (req, res) => {
     //     const Fromdate = ISOString(req?.query?.Fromdate);
     //     const Todate = ISOString(req?.query?.Todate);
@@ -725,6 +758,7 @@ const PurchaseOrderDataEntry = () => {
         godownLocation,
         updateArrivalDetails,
         deleteOrderPermanantly,
+        getDeliveryByPartyId
     }
 }
 

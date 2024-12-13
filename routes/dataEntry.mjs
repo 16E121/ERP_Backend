@@ -74,6 +74,7 @@ dataEntryRouter.get('/purchaseOrderEntry', purchaseOrder.getPurchaseOrder)
 dataEntryRouter.post('/purchaseOrderEntry', purchaseOrder.createPurchaseOrder)
 dataEntryRouter.put('/purchaseOrderEntry', purchaseOrder.updatePurchaseOrder)
 dataEntryRouter.delete('/purchaseOrderEntry', purchaseOrder.deleteOrderPermanantly);
+dataEntryRouter.get('/purchaseOrderEntry/delivery/partyBased', purchaseOrder.getDeliveryByPartyId);
 dataEntryRouter.put('/purchaseOrderEntry/ArrivalUpdate', purchaseOrder.updateArrivalDetails);
 
 
