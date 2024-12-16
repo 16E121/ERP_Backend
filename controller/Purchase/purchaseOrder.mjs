@@ -265,13 +265,13 @@ const PurchaseOrder = () => {
 
             for (let i = 0; i < DE_PO_ID.length; i++) {
                 const request = new sql.Request(transaction)
-                    .input('OrderId', DE_PO_ID[i])
+                    .input('Order_Id', DE_PO_ID[i])
                     .input('PIN_Id', PIN_Id)
                     .query(`
                         INSERT INTO tbl_Purchase_Order_Inv_Gen_Order (
-                            OrderId, PIN_Id
+                            Order_Id, PIN_Id
                         ) VALUES (
-                            @OrderId, @PIN_Id
+                            @Order_Id, @PIN_Id
                         );`
                     );
 
