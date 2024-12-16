@@ -355,9 +355,9 @@ export const getProducts = async (IS_Sold = 1) => {
                 ON pg.Pro_Group_Id = p.Product_Group
                 LEFT JOIN UOM AS u
                 ON u.Unit_Id = p.UOM_Id
-            WHERE
-                p.IS_Sold = @IS_Sold ;`
-            );
+            `);
+            // WHERE
+            //     p.IS_Sold = @IS_Sold ;
         const result = await request;
 
         if (result.recordset.length > 0) {

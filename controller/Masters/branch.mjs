@@ -6,15 +6,8 @@ const branchController = () => {
 
     const getBranchDrowDown = async (req, res) => {
 
-        const { Company_id } = req.query;
-
-        if (!checkIsNumber(Company_id)) {
-            return invalidInput(res, 'Company_id is required')
-        }
-
         try {
             const branch = (await new sql.Request()
-                .input('Comp', Company_id)
                 .query(`
                     SELECT 
                         BranchId, 
@@ -39,15 +32,9 @@ const branchController = () => {
     }
 
     const getBranch = async (req, res) => {
-        const { Company_id } = req.query;
-
-        if (!checkIsNumber(Company_id)) {
-            return invalidInput(res, 'Company_id are required')
-        }
 
         try {
             const request = new sql.Request()
-                .input('Company_id', Company_id)
                 .query(`
                     SELECT 
                         B.BranchId, 

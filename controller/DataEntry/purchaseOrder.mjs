@@ -671,8 +671,7 @@ const PurchaseOrderDataEntry = () => {
                 .query(`
                     SELECT 
                         d.*,
-                        COALESCE(g.PO_ID, 'not found') AS PO_ID, 
-                        COALESCE(g.Sno, 'not found') AS OrderPK 
+                        COALESCE(g.PO_ID, 'not found') AS PO_ID
                     FROM tbl_PurchaseOrderDeliveryDetails AS d
                     LEFT JOIN tbl_PurchaseOrderGeneralDetails AS g
                     ON d.OrderId = g.Sno

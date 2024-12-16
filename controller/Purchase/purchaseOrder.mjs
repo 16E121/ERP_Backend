@@ -1,8 +1,8 @@
 import sql from 'mssql'
 import { dataFound, invalidInput, noData, servError, success } from '../../res.mjs';
-import { checkIsNumber, isEqualNumber, ISOString, Subraction, Multiplication, RoundNumber } from '../../helper_functions.mjs'
+import { checkIsNumber, isEqualNumber, ISOString, Subraction, Multiplication, RoundNumber, createPadString } from '../../helper_functions.mjs'
 import getImage from '../../middleware/getImageIfExist.mjs';
-import { getProducts } from '../../middleware/miniAPIs.mjs';
+import { getNextId, getProducts } from '../../middleware/miniAPIs.mjs';
 
 
 const findProductDetails = (arr = [], productid) => arr.find(obj => isEqualNumber(obj.Product_Id, productid)) ?? {};
@@ -24,12 +24,11 @@ const PurchaseOrder = () => {
 
     const purchaseOrderCreation = async (req, res) => {
         const {
-            Retailer_Id, Branch_Id,
+            Retailer_Id, Branch_Id, Ref_Po_Inv_No = '',
             Narration = null, Created_by, Product_Array = [], GST_Inclusive = 1, IS_IGST = 0,
-            Loadman_Id = '', Broker_Id = '', Transpoter_Id = ''
         } = req.body;
 
-        const Po_Date = ISOString(req?.body?.Po_Date);
+        const Po_Inv_Date = ISOString(req?.body?.Po_Inv_Date);
         const isExclusiveBill = isEqualNumber(GST_Inclusive, 0);
         const isInclusive = isEqualNumber(GST_Inclusive, 1);
         const isNotTaxableBill = isEqualNumber(GST_Inclusive, 2);
@@ -46,8 +45,34 @@ const PurchaseOrder = () => {
         const transaction = new sql.Transaction();
 
         try {
-            const productsData = (await getProducts(0)).dataArray;
+            const productsData = (await getProducts(1)).dataArray;
             const Alter_Id = Math.floor(Math.random() * 999999);
+
+            const PO_Inv_Year = new Date().getFullYear();
+
+            const PO_Inv_Id = Number((await new sql.Request()
+                .input('Branch_Id', Branch_Id)
+                .input('PO_Inv_Year', PO_Inv_Year)
+                .query(`
+                    SELECT 
+                        COALESCE(MAX(PO_Inv_Id), 0) AS PO_Inv_Id
+                    FROM 
+                        tbl_Purchase_Order_Inv_Gen_Info
+                    WHERE
+                        Branch_Id = @Branch_Id
+                        AND
+                        PO_Inv_Year = @PO_Inv_Year`
+                ))?.recordset[0]?.PO_Inv_Id) + 1;
+
+            if (!checkIsNumber(PO_Inv_Id)) throw new Error('Failed to get Order Id');
+
+            const Po_Inv_No = 'PO_' + Branch_Id + '_' + PO_Inv_Year + '_' + createPadString(PO_Inv_Id, 4);
+
+            const getPIN_Id = await getNextId({ table: 'tbl_Purchase_Order_Inv_Gen_Info', column: 'PIN_Id' });
+
+            if (!getPIN_Id.status || !checkIsNumber(getPIN_Id.MaxId)) throw new Error('Failed to get PIN_Id');
+
+            const PIN_Id = getPIN_Id.MaxId;
 
             const Total_Invoice_value = Product_Array.reduce((o, item) => {
                 const itemRate = RoundNumber(item?.Item_Rate);
@@ -99,42 +124,41 @@ const PurchaseOrder = () => {
             await transaction.begin();
 
             const request = new sql.Request(transaction)
-                .input('Po_Date', Po_Date)
-                .input('retailer', Retailer_Id)
-                .input('Loadman_Id', Loadman_Id)
-                .input('Broker_Id', Broker_Id)
-                .input('Transpoter_Id', Transpoter_Id)
-                .input('branch', Branch_Id)
+                .input('PIN_Id', PIN_Id)
+                .input('PO_Inv_Id', PO_Inv_Id)
+                .input('PO_Inv_Year', PO_Inv_Year)
+                .input('Ref_Po_Inv_No', Ref_Po_Inv_No)
+                .input('Branch_Id', Branch_Id)
+                .input('Po_Inv_No', Po_Inv_No)
+                .input('Po_Inv_Date', Po_Inv_Date)
+                .input('Retailer_Id', Retailer_Id)
                 .input('GST_Inclusive', GST_Inclusive)
                 .input('CSGT_Total', isIGST ? 0 : totalValueBeforeTax.TotalTax / 2)
                 .input('SGST_Total', isIGST ? 0 : totalValueBeforeTax.TotalTax / 2)
                 .input('IGST_Total', isIGST ? totalValueBeforeTax.TotalTax : 0)
                 .input('IS_IGST', isIGST ? 1 : 0)
-                .input('roundoff', Total_Invoice_value - (totalValueBeforeTax.TotalValue + totalValueBeforeTax.TotalTax))
-                .input('totalinvoice', Total_Invoice_value)
+                .input('Round_off', Total_Invoice_value - (totalValueBeforeTax.TotalValue + totalValueBeforeTax.TotalTax))
                 .input('Total_Before_Tax', totalValueBeforeTax.TotalValue)
                 .input('Total_Tax', totalValueBeforeTax.TotalTax)
-                .input('narration', Narration)
-                .input('cancel', 0)
-                .input('createdby', Created_by)
-                .input('alterby', Created_by)
-                .input('Alter_Id', Alter_Id)
-                .input('createdon', new Date())
-                .input('alteron', new Date())
+                .input('Total_Invoice_value', Total_Invoice_value)
+                .input('Narration', Narration)
+                .input('Cancel_status', 0)
+                .input('Created_by', Created_by)
+                .input('Altered_by', Created_by)
+                .input('Created_on', new Date())
+                .input('Alterd_on', new Date())
                 .input('Trans_Type', 'INSERT')
+                .input('Alter_Id', Alter_Id)
                 .query(`
-                    INSERT INTO tbl_Purchase_Order_Gen_Info (
-                        Po_Date, Retailer_Id, Loadman_Id, Broker_Id, Transpoter_Id, Branch_Id, CSGT_Total, SGST_Total, IGST_Total,
-                        GST_Inclusive, IS_IGST, Round_off, Total_Invoice_value, Total_Before_Tax, Total_Tax,
-                        Narration, Cancel_status, Created_by, Altered_by, Alter_Id, Created_on, Alterd_on,
-                        Trans_Type
+                    INSERT INTO tbl_Purchase_Order_Inv_Gen_Info (
+                        PIN_Id, PO_Inv_Id, PO_Inv_Year, Ref_Po_Inv_No, Branch_Id, Po_Inv_No, Po_Inv_Date, Retailer_Id, GST_Inclusive, IS_IGST,
+                        CSGT_Total, SGST_Total, IGST_Total, Round_off, Total_Before_Tax, Total_Tax, Total_Invoice_value,
+                        Narration, Cancel_status, Created_by, Altered_by, Created_on, Alterd_on, Trans_Type, Alter_Id
                     ) VALUES (
-                        @Po_Date, @retailer, @Loadman_Id, @Broker_Id, @Transpoter_Id, @salesperson, @branch, @CSGT_Total, @SGST_Total, @IGST_Total,
-                        @GST_Inclusive, @IS_IGST, @roundoff, @totalinvoice, @Total_Before_Tax, @Total_Tax,
-                        @narration, @cancel, @createdby, @alterby, @Alter_Id, @createdon, @alteron,
-                        @Trans_Type
-                    );
-                    SELECT SCOPE_IDENTITY() AS OrderId;`
+                        @PIN_Id, @PO_Inv_Id, @PO_Inv_Year, @Ref_Po_Inv_No, @Branch_Id, @Po_Inv_No, @Po_Inv_Date, @Retailer_Id, @GST_Inclusive, @IS_IGST,
+                        @CSGT_Total, @SGST_Total, @IGST_Total, @Round_off, @Total_Before_Tax, @Total_Tax, @Total_Invoice_value,
+                        @Narration, @Cancel_status, @Created_by, @Altered_by, @Created_on, @Alterd_on, @Trans_Type, @Alter_Id
+                    )`
                 );
 
             const result = await request;
@@ -143,13 +167,11 @@ const PurchaseOrder = () => {
                 throw new Error('Failed to create order, Try again.');
             }
 
-            const OrderId = result.recordset[0].OrderId;
-
-
             for (let i = 0; i < Product_Array.length; i++) {
+
                 const product = Product_Array[i];
                 const productDetails = findProductDetails(productsData, product.Item_Id)
-                
+
                 const gstPercentage = isEqualNumber(IS_IGST, 1) ? productDetails.Igst_P : productDetails.Gst_P;
                 const Taxble = gstPercentage > 0 ? 1 : 0;
                 const Bill_Qty = Number(product.Bill_Qty);
@@ -163,22 +185,39 @@ const PurchaseOrder = () => {
                 const Final_Amo = isInclusive ? Amount : (Amount + tax);
                 const Cgst_Amo = !isIGST ? (taxCalc(GST_Inclusive, Amount, gstPercentage) / 2) : 0;
                 const Igst_Amo = isIGST ? taxCalc(GST_Inclusive, Amount, gstPercentage) : 0;
-                
+
                 const request2 = new sql.Request(transaction)
-                    .input('Po_Date', Po_Date)
-                    .input('Purchase_Order_Id', OrderId)
+                    .input('DeliveryId', Number(product?.DeliveryId || 0))
+                    .input('Po_Inv_Date', Po_Inv_Date)
+                    .input('PIN_Id', PIN_Id)
+                    .input('Location_Id', Number(product?.Location_Id || 0))
+
                     .input('S_No', i + 1)
                     .input('Item_Id', product.Item_Id)
+
                     .input('Bill_Qty', Bill_Qty)
+                    .input('Act_Qty', Bill_Qty)
+                    .input('Bill_Alt_Qty', Bill_Qty)
+                    .input('Alt_Act_Qty', Bill_Qty)
+
+                    .input('Unit_Id', product.Unit_Id ?? '')
+                    .input('Bill_Alt_Unit_Id', product.Unit_Id ?? '')
+                    .input('Act_unit_Id', product.Unit_Id ?? '')
+                    .input('Alt_Unit_Id', product.Unit_Id ?? '')
+
+                    .input('Unit_Name', product.Unit_Name ?? '')
+                    .input('Bill_Alt_Unit_Name', product.Unit_Name ?? '')
+                    .input('Act_unit_Nmae', product.Unit_Name ?? '')
+                    .input('Alt_Unit_Name', product.Unit_Name ?? '')
+
+                    .input('Taxable_Rate', Taxable_Rate)
                     .input('Item_Rate', Item_Rate)
                     .input('Amount', Amount)
                     .input('Free_Qty', 0)
                     .input('Total_Qty', Bill_Qty)
                     .input('Taxble', Taxble)
-                    .input('Taxable_Rate', Taxable_Rate)
                     .input('HSN_Code', productDetails.HSN_Code)
-                    .input('Unit_Id', product.UOM ?? '')
-                    .input('Unit_Name', product.Units ?? '')
+
                     .input('Taxable_Amount', Taxable_Amount)
                     .input('Tax_Rate', gstPercentage)
                     .input('Cgst', (gstPercentage / 2) ?? 0)
@@ -190,14 +229,20 @@ const PurchaseOrder = () => {
                     .input('Final_Amo', Final_Amo)
                     .input('Created_on', new Date())
                     .query(`
-                        INSERT INTO tbl_Purchase_Order_Stock_Info (
-                            Po_Date, Purchase_Order_Id, S_No, Item_Id, Bill_Qty, Item_Rate, Amount, Free_Qty, Total_Qty, 
-                            Taxble, Taxable_Rate, HSN_Code, Unit_Id, Unit_Name, Taxable_Amount, Tax_Rate, 
-                            Cgst, Cgst_Amo, Sgst, Sgst_Amo, Igst, Igst_Amo, Final_Amo, Created_on
+                        INSERT INTO tbl_Purchase_Order_Inv_Stock_Info (
+                            DeliveryId, PIN_Id, Po_Inv_Date, Location_Id, S_No, Item_Id,
+                            Bill_Qty, Act_Qty, Bill_Alt_Qty, Alt_Act_Qty,
+                            Unit_Id, Bill_Alt_Unit_Id, Act_unit_Id, Alt_Unit_Id,
+                            Unit_Name, Bill_Alt_Unit_Name, Act_unit_Nmae, Alt_Unit_Name,
+                            Taxable_Rate, Item_Rate, Amount, Free_Qty, Total_Qty, Taxble,
+                            HSN_Code, Taxable_Amount, Tax_Rate, Cgst, Cgst_Amo, Sgst, Sgst_Amo, Igst, Igst_Amo, Final_Amo, Created_on
                         ) VALUES (
-                            @Po_Date, @Purchase_Order_Id, @S_No, @Item_Id, @Bill_Qty, @Item_Rate, @Amount, @Free_Qty, @Total_Qty, 
-                            @Taxble, @Taxable_Rate, @HSN_Code, @Unit_Id, @Unit_Name, @Taxable_Amount, @Tax_Rate, 
-                            @Cgst, @Cgst_Amo, @Sgst, @Sgst_Amo, @Igst, @Igst_Amo, @Final_Amo, @Created_on
+                            @DeliveryId, @PIN_Id, @Po_Inv_Date, @Location_Id, @S_No, @Item_Id,
+                            @Bill_Qty, @Act_Qty, @Bill_Alt_Qty, @Alt_Act_Qty,
+                            @Unit_Id, @Bill_Alt_Unit_Id, @Act_unit_Id, @Alt_Unit_Id,
+                            @Unit_Name, @Bill_Alt_Unit_Name, @Act_unit_Nmae, @Alt_Unit_Name,
+                            @Taxable_Rate, @Item_Rate, @Amount, @Free_Qty, @Total_Qty, @Taxble,
+                            @HSN_Code, @Taxable_Amount, @Tax_Rate, @Cgst, @Cgst_Amo, @Sgst, @Sgst_Amo, @Igst, @Igst_Amo, @Final_Amo, @Created_on
                         );`
                     )
 
@@ -206,6 +251,33 @@ const PurchaseOrder = () => {
                 if (result2.rowsAffected[0] === 0) {
                     throw new Error('Failed to create order, Try again.');
                 }
+            }
+
+            const DE_PO_ID = Product_Array.reduce((acc, pro) => {
+                const existIndex = acc.findIndex(ind => isEqualNumber(ind, pro.OrderId));
+
+                if (existIndex === -1) {
+                    return acc.concat(pro.OrderId);
+                } else {
+                    return acc;
+                }
+            }, []);
+
+            for (let i = 0; i < DE_PO_ID.length; i++) {
+                const request = new sql.Request(transaction)
+                    .input('OrderId', DE_PO_ID[i])
+                    .input('PIN_Id', PIN_Id)
+                    .query(`
+                        INSERT INTO tbl_Purchase_Order_Inv_Gen_Order (
+                            OrderId, PIN_Id
+                        ) VALUES (
+                            @OrderId, @PIN_Id
+                        );`
+                    );
+
+                const result = await request;
+
+                if (result.rowsAffected[0] === 0) throw new Error('Failed to save data entry id')
             }
 
             await transaction.commit();
@@ -223,7 +295,6 @@ const PurchaseOrder = () => {
         const {
             Po_Id, Retailer_Id, Branch_Id,
             Narration = null, Created_by, Product_Array, GST_Inclusive = 1, IS_IGST = 0,
-            Loadman_Id = '', Broker_Id = '', Transpoter_Id = ''
         } = req.body;
 
         const Po_Date = ISOString(req?.body?.Po_Date);
@@ -300,9 +371,6 @@ const PurchaseOrder = () => {
                 .input('soid', Po_Id)
                 .input('date', Po_Date)
                 .input('retailer', Retailer_Id)
-                .input('Loadman_Id', Loadman_Id)
-                .input('Broker_Id', Broker_Id)
-                .input('Transpoter_Id', Transpoter_Id)
                 .input('branch', Branch_Id)
                 .input('GST_Inclusive', GST_Inclusive)
                 .input('CSGT_Total', isIGST ? 0 : totalValueBeforeTax.TotalTax / 2)
@@ -320,13 +388,10 @@ const PurchaseOrder = () => {
                 .input('Trans_Type', 'UPDATE')
                 .query(`
                     UPDATE 
-                        tbl_Purchase_Order_Gen_Info
+                        tbl_Purchase_Order_Inv_Gen_Info
                     SET
                         Po_Date = @date, 
                         Retailer_Id = @retailer, 
-                        Loadman_Id = @Loadman_Id, 
-                        Broker_Id = @Broker_Id, 
-                        Transpoter_Id = @Transpoter_Id, 
                         Branch_Id = @branch, 
                         GST_Inclusive = @GST_Inclusive, 
                         IS_IGST = @IS_IGST, 
@@ -355,12 +420,12 @@ const PurchaseOrder = () => {
 
             await new sql.Request(transaction)
                 .input('soid', Po_Id)
-                .query(`DELETE FROM tbl_Purchase_Order_Stock_Info WHERE Purchase_Order_Id = @soid`);
+                .query(`DELETE FROM tbl_Purchase_Order_Inv_Stock_Info WHERE Purchase_Order_Id = @soid`);
 
             for (let i = 0; i < Product_Array.length; i++) {
                 const product = Product_Array[i];
                 const productDetails = findProductDetails(productsData, product.Item_Id)
-                
+
                 const gstPercentage = isIGST ? productDetails?.Igst_P : productDetails?.Gst_P;
                 const Taxble = gstPercentage > 0 ? 1 : 0;
                 const Bill_Qty = Number(product.Bill_Qty);
@@ -402,7 +467,7 @@ const PurchaseOrder = () => {
                     .input('Final_Amo', Final_Amo)
                     .input('Created_on', new Date())
                     .query(`
-                        INSERT INTO tbl_Purchase_Order_Stock_Info (
+                        INSERT INTO tbl_Purchase_Order_Inv_Stock_Info (
                             Po_Date, Purchase_Order_Id, S_No, Item_Id, Bill_Qty, Item_Rate, Amount, Free_Qty, Total_Qty, 
                             Taxble, Taxable_Rate, HSN_Code, Unit_Id, Unit_Name, Taxable_Amount, Tax_Rate, 
                             Cgst, Cgst_Amo, Sgst, Sgst_Amo, Igst, Igst_Amo, Final_Amo, Created_on
@@ -445,7 +510,7 @@ const PurchaseOrder = () => {
                     COALESCE(pm.Product_Image_Name, 'unknown') AS Product_Image_Name,
                     COALESCE(u.Units, 'unknown') AS UOM
             	FROM
-            		tbl_Purchase_Order_Stock_Info AS oi
+            		tbl_Purchase_Order_Inv_Stock_Info AS oi
                     LEFT JOIN tbl_Product_Master AS pm
                     ON pm.Product_Id = oi.Item_Id
                     LEFT JOIN tbl_UOM AS u
@@ -472,7 +537,7 @@ const PurchaseOrder = () => {
             	), '[]') AS Products_List
             
             FROM 
-            	tbl_Purchase_Order_Gen_Info AS so
+            	tbl_Purchase_Order_Inv_Gen_Info AS so
             
             	LEFT JOIN tbl_Retailers_Master AS rm
             	ON rm.Retailer_Id = so.Retailer_Id
@@ -490,7 +555,7 @@ const PurchaseOrder = () => {
             	CONVERT(DATE, so.Po_Date) <= CONVERT(DATE, @to) 
             `;
 
-            
+
             // COALESCE(sp.Name, 'unknown') AS Sales_Person_Name,
             // LEFT JOIN tbl_Users AS sp
             // ON sp.UserId = so.Sales_Person_Id
