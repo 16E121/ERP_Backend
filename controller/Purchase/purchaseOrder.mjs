@@ -196,7 +196,7 @@ const PurchaseOrder = () => {
                     .input('Item_Id', product.Item_Id)
 
                     .input('Bill_Qty', Bill_Qty)
-                    .input('Act_Qty', Bill_Qty)
+                    .input('Act_Qty', Number(product?.Act_Qty || 0))
                     .input('Bill_Alt_Qty', Bill_Qty)
                     .input('Alt_Act_Qty', Bill_Qty)
 
@@ -507,18 +507,15 @@ const PurchaseOrder = () => {
                 SELECT
             		oi.*,
             		COALESCE(pm.Product_Name, 'unknown') AS Product_Name,
-                    COALESCE(pm.Product_Image_Name, 'unknown') AS Product_Image_Name,
-                    COALESCE(u.Units, 'unknown') AS UOM
+                    COALESCE(pm.Product_Image_Name, 'unknown') AS Product_Image_Name
             	FROM
             		tbl_Purchase_Order_Inv_Stock_Info AS oi
                     LEFT JOIN tbl_Product_Master AS pm
                     ON pm.Product_Id = oi.Item_Id
-                    LEFT JOIN tbl_UOM AS u
-                    ON u.Unit_Id = oi.Unit_Id
                 WHERE
-                    CONVERT(DATE, oi.Po_Date) >= CONVERT(DATE, @from)
+                    CONVERT(DATE, oi.Po_Inv_Date) >= CONVERT(DATE, @from)
             	    AND
-            	    CONVERT(DATE, oi.Po_Date) <= CONVERT(DATE, @to)
+            	    CONVERT(DATE, oi.Po_Inv_Date) <= CONVERT(DATE, @to)
             )
             SELECT 
             	so.*,
@@ -532,7 +529,7 @@ const PurchaseOrder = () => {
             		FROM
             			SALES_DETAILS AS sd
             		WHERE
-            			sd.Purchase_Order_Id = so.Po_Id
+            			sd.PIN_Id = so.PIN_Id
             		FOR JSON PATH
             	), '[]') AS Products_List
             
@@ -550,9 +547,9 @@ const PurchaseOrder = () => {
             	ON cb.UserId = so.Created_by
                         
             WHERE
-                CONVERT(DATE, so.Po_Date) >= CONVERT(DATE, @from)
+                CONVERT(DATE, so.Po_Inv_Date) >= CONVERT(DATE, @from)
             	AND
-            	CONVERT(DATE, so.Po_Date) <= CONVERT(DATE, @to) 
+            	CONVERT(DATE, so.Po_Inv_Date) <= CONVERT(DATE, @to) 
             `;
 
 
@@ -579,7 +576,7 @@ const PurchaseOrder = () => {
             }
 
             query += `
-            ORDER BY CONVERT(DATETIME, so.Po_Id) DESC`;
+            ORDER BY CONVERT(DATETIME, so.PIN_Id) DESC`;
 
             const request = new sql.Request();
             request.input('from', Fromdate);
