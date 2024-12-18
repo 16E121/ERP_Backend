@@ -26,9 +26,11 @@ const PurchaseOrder = () => {
         const {
             Retailer_Id, Branch_Id, Ref_Po_Inv_No = '',
             Narration = null, Created_by, Product_Array = [], GST_Inclusive = 1, IS_IGST = 0,
+            Voucher_Type = '', Stock_Item_Ledger_Name = '',
         } = req.body;
 
         const Po_Inv_Date = ISOString(req?.body?.Po_Inv_Date);
+        const Po_Entry_Date = ISOString(req?.body?.Po_Entry_Date);
         const isExclusiveBill = isEqualNumber(GST_Inclusive, 0);
         const isInclusive = isEqualNumber(GST_Inclusive, 1);
         const isNotTaxableBill = isEqualNumber(GST_Inclusive, 2);
@@ -143,6 +145,9 @@ const PurchaseOrder = () => {
                 .input('Total_Invoice_value', Total_Invoice_value)
                 .input('Narration', Narration)
                 .input('Cancel_status', 0)
+                .input('Po_Entry_Date', Po_Entry_Date)
+                .input('Voucher_Type', Voucher_Type)
+                .input('Stock_Item_Ledger_Name', Stock_Item_Ledger_Name)
                 .input('Created_by', Created_by)
                 .input('Altered_by', Created_by)
                 .input('Created_on', new Date())
@@ -151,13 +156,13 @@ const PurchaseOrder = () => {
                 .input('Alter_Id', Alter_Id)
                 .query(`
                     INSERT INTO tbl_Purchase_Order_Inv_Gen_Info (
-                        PIN_Id, PO_Inv_Id, PO_Inv_Year, Ref_Po_Inv_No, Branch_Id, Po_Inv_No, Po_Inv_Date, Retailer_Id, GST_Inclusive, IS_IGST,
-                        CSGT_Total, SGST_Total, IGST_Total, Round_off, Total_Before_Tax, Total_Tax, Total_Invoice_value,
-                        Narration, Cancel_status, Created_by, Altered_by, Created_on, Alterd_on, Trans_Type, Alter_Id
+                        PIN_Id, PO_Inv_Id, PO_Inv_Year, Ref_Po_Inv_No, Branch_Id, Po_Inv_No, Po_Inv_Date, Po_Entry_Date, Retailer_Id, GST_Inclusive, 
+                        IS_IGST, CSGT_Total, SGST_Total, IGST_Total, Round_off, Total_Before_Tax, Total_Tax, Total_Invoice_value, Narration, 
+                        Cancel_status, Created_by, Altered_by, Created_on, Alterd_on, Trans_Type, Alter_Id, Voucher_Type, Stock_Item_Ledger_Name
                     ) VALUES (
-                        @PIN_Id, @PO_Inv_Id, @PO_Inv_Year, @Ref_Po_Inv_No, @Branch_Id, @Po_Inv_No, @Po_Inv_Date, @Retailer_Id, @GST_Inclusive, @IS_IGST,
-                        @CSGT_Total, @SGST_Total, @IGST_Total, @Round_off, @Total_Before_Tax, @Total_Tax, @Total_Invoice_value,
-                        @Narration, @Cancel_status, @Created_by, @Altered_by, @Created_on, @Alterd_on, @Trans_Type, @Alter_Id
+                        @PIN_Id, @PO_Inv_Id, @PO_Inv_Year, @Ref_Po_Inv_No, @Branch_Id, @Po_Inv_No, @Po_Inv_Date, @Po_Entry_Date, @Retailer_Id, @GST_Inclusive, 
+                        @IS_IGST, @CSGT_Total, @SGST_Total, @IGST_Total, @Round_off, @Total_Before_Tax, @Total_Tax, @Total_Invoice_value, @Narration, 
+                        @Cancel_status, @Created_by, @Altered_by, @Created_on, @Alterd_on, @Trans_Type, @Alter_Id, @Voucher_Type, @Stock_Item_Ledger_Name
                     )`
                 );
 
@@ -196,9 +201,9 @@ const PurchaseOrder = () => {
                     .input('Item_Id', product.Item_Id)
 
                     .input('Bill_Qty', Bill_Qty)
-                    .input('Act_Qty', Number(product?.Act_Qty || 0))
-                    .input('Bill_Alt_Qty', Bill_Qty)
-                    .input('Alt_Act_Qty', Bill_Qty)
+                    .input('Act_Qty', Bill_Qty)
+                    .input('Bill_Alt_Qty', Number(product?.Bill_Alt_Qty))
+                    .input('Alt_Act_Qty', Number(product?.Bill_Alt_Qty))
 
                     .input('Unit_Id', product.Unit_Id ?? '')
                     .input('Bill_Alt_Unit_Id', product.Unit_Id ?? '')
@@ -210,6 +215,7 @@ const PurchaseOrder = () => {
                     .input('Act_unit_Nmae', product.Unit_Name ?? '')
                     .input('Alt_Unit_Name', product.Unit_Name ?? '')
 
+                    .input('Batch_No', product?.Batch_No ?? '')
                     .input('Taxable_Rate', Taxable_Rate)
                     .input('Item_Rate', Item_Rate)
                     .input('Amount', Amount)
@@ -233,14 +239,14 @@ const PurchaseOrder = () => {
                             DeliveryId, PIN_Id, Po_Inv_Date, Location_Id, S_No, Item_Id,
                             Bill_Qty, Act_Qty, Bill_Alt_Qty, Alt_Act_Qty,
                             Unit_Id, Bill_Alt_Unit_Id, Act_unit_Id, Alt_Unit_Id,
-                            Unit_Name, Bill_Alt_Unit_Name, Act_unit_Nmae, Alt_Unit_Name,
+                            Unit_Name, Bill_Alt_Unit_Name, Act_unit_Nmae, Alt_Unit_Name, Batch_No,
                             Taxable_Rate, Item_Rate, Amount, Free_Qty, Total_Qty, Taxble,
                             HSN_Code, Taxable_Amount, Tax_Rate, Cgst, Cgst_Amo, Sgst, Sgst_Amo, Igst, Igst_Amo, Final_Amo, Created_on
                         ) VALUES (
                             @DeliveryId, @PIN_Id, @Po_Inv_Date, @Location_Id, @S_No, @Item_Id,
                             @Bill_Qty, @Act_Qty, @Bill_Alt_Qty, @Alt_Act_Qty,
                             @Unit_Id, @Bill_Alt_Unit_Id, @Act_unit_Id, @Alt_Unit_Id,
-                            @Unit_Name, @Bill_Alt_Unit_Name, @Act_unit_Nmae, @Alt_Unit_Name,
+                            @Unit_Name, @Bill_Alt_Unit_Name, @Act_unit_Nmae, @Alt_Unit_Name, @Batch_No,
                             @Taxable_Rate, @Item_Rate, @Amount, @Free_Qty, @Total_Qty, @Taxble,
                             @HSN_Code, @Taxable_Amount, @Tax_Rate, @Cgst, @Cgst_Amo, @Sgst, @Sgst_Amo, @Igst, @Igst_Amo, @Final_Amo, @Created_on
                         );`
@@ -293,23 +299,25 @@ const PurchaseOrder = () => {
 
     const editPurchaseOrder = async (req, res) => {
         const {
-            Po_Id, Retailer_Id, Branch_Id,
-            Narration = null, Created_by, Product_Array, GST_Inclusive = 1, IS_IGST = 0,
+            PIN_Id, Retailer_Id, Branch_Id, Ref_Po_Inv_No = '',
+            Narration = null, Created_by, Product_Array = [], GST_Inclusive = 1, IS_IGST = 0,
+            Voucher_Type = '', Stock_Item_Ledger_Name = ''
         } = req.body;
 
-        const Po_Date = ISOString(req?.body?.Po_Date);
+        const Po_Inv_Date = ISOString(req?.body?.Po_Inv_Date);
+        const Po_Entry_Date = ISOString(req?.body?.Po_Inv_Date);
         const isExclusiveBill = isEqualNumber(GST_Inclusive, 0);
         const isInclusive = isEqualNumber(GST_Inclusive, 1);
         const isNotTaxableBill = isEqualNumber(GST_Inclusive, 2);
         const isIGST = isEqualNumber(IS_IGST, 1);
 
         if (
-            !checkIsNumber(Po_Id)
+            !checkIsNumber(PIN_Id)
             || !checkIsNumber(Retailer_Id)
             || !checkIsNumber(Created_by)
             || (!Array.isArray(Product_Array) || Product_Array.length === 0)
         ) {
-            return invalidInput(res, 'Po_Id, Retailer_Id, Sales_Person_Id, Created_by, Product_Array is Required')
+            return invalidInput(res, 'PIN_Id, Retailer_Id, Sales_Person_Id, Created_by, Product_Array is Required')
         }
 
         const transaction = new sql.Transaction();
@@ -368,47 +376,55 @@ const PurchaseOrder = () => {
             await transaction.begin();
 
             const request = new sql.Request(transaction)
-                .input('soid', Po_Id)
-                .input('date', Po_Date)
-                .input('retailer', Retailer_Id)
-                .input('branch', Branch_Id)
+                .input('PIN_Id', PIN_Id)
+                .input('Po_Inv_Date', Po_Inv_Date)
+                .input('Po_Entry_Date', Po_Entry_Date)
+                .input('Voucher_Type', Voucher_Type)
+                .input('Stock_Item_Ledger_Name', Stock_Item_Ledger_Name)
+                .input('Ref_Po_Inv_No', Ref_Po_Inv_No)
+                .input('Retailer_Id', Retailer_Id)
+                .input('Branch_Id', Branch_Id)
                 .input('GST_Inclusive', GST_Inclusive)
                 .input('CSGT_Total', isIGST ? 0 : totalValueBeforeTax.TotalTax / 2)
                 .input('SGST_Total', isIGST ? 0 : totalValueBeforeTax.TotalTax / 2)
                 .input('IGST_Total', isIGST ? totalValueBeforeTax.TotalTax : 0)
                 .input('IS_IGST', isIGST ? 1 : 0)
-                .input('roundoff', Total_Invoice_value - (totalValueBeforeTax.TotalValue + totalValueBeforeTax.TotalTax))
-                .input('totalinvoice', Total_Invoice_value)
+                .input('Round_off', Total_Invoice_value - (totalValueBeforeTax.TotalValue + totalValueBeforeTax.TotalTax))
+                .input('Total_Invoice_value', Total_Invoice_value)
                 .input('Total_Before_Tax', totalValueBeforeTax.TotalValue)
                 .input('Total_Tax', totalValueBeforeTax.TotalTax)
                 .input('narration', Narration)
-                .input('alterby', Created_by)
+                .input('Altered_by', Created_by)
                 .input('Alter_Id', Alter_Id)
-                .input('alteron', new Date())
+                .input('Alterd_on', new Date())
                 .input('Trans_Type', 'UPDATE')
                 .query(`
                     UPDATE 
                         tbl_Purchase_Order_Inv_Gen_Info
                     SET
-                        Po_Date = @date, 
-                        Retailer_Id = @retailer, 
-                        Branch_Id = @branch, 
+                        Po_Inv_Date = @Po_Inv_Date, 
+                        Po_Entry_Date = @Po_Entry_Date,
+                        Ref_Po_Inv_No = @Ref_Po_Inv_No, 
+                        Retailer_Id = @Retailer_Id, 
+                        Branch_Id = @Branch_Id, 
                         GST_Inclusive = @GST_Inclusive, 
                         IS_IGST = @IS_IGST, 
                         CSGT_Total = @CSGT_Total, 
                         SGST_Total = @SGST_Total, 
                         IGST_Total = @IGST_Total, 
-                        Round_off = @roundoff, 
-                        Total_Invoice_value = @totalinvoice, 
+                        Round_off = @Round_off, 
+                        Total_Invoice_value = @Total_Invoice_value, 
                         Total_Before_Tax = @Total_Before_Tax, 
                         Total_Tax = @Total_Tax,
                         Narration = @narration,  
-                        Altered_by = @alterby, 
+                        Voucher_Type = @Voucher_Type,
+                        Stock_Item_Ledger_Name = @Stock_Item_Ledger_Name,
+                        Altered_by = @Altered_by, 
                         Alter_Id = @Alter_Id, 
-                        Alterd_on = @alteron,
+                        Alterd_on = @Alterd_on,
                         Trans_Type = @Trans_Type
                     WHERE
-                        Po_Id = @soid;
+                        PIN_Id = @PIN_Id;
                     `
                 );
 
@@ -419,14 +435,18 @@ const PurchaseOrder = () => {
             }
 
             await new sql.Request(transaction)
-                .input('soid', Po_Id)
-                .query(`DELETE FROM tbl_Purchase_Order_Inv_Stock_Info WHERE Purchase_Order_Id = @soid`);
+                .input('PIN_Id', PIN_Id)
+                .query(`
+                    DELETE FROM tbl_Purchase_Order_Inv_Stock_Info WHERE PIN_Id = @PIN_Id
+                    DELETE FROM tbl_Purchase_Order_Inv_Gen_Order WHERE PIN_Id = @PIN_Id
+                `);
 
             for (let i = 0; i < Product_Array.length; i++) {
+
                 const product = Product_Array[i];
                 const productDetails = findProductDetails(productsData, product.Item_Id)
 
-                const gstPercentage = isIGST ? productDetails?.Igst_P : productDetails?.Gst_P;
+                const gstPercentage = isEqualNumber(IS_IGST, 1) ? productDetails.Igst_P : productDetails.Gst_P;
                 const Taxble = gstPercentage > 0 ? 1 : 0;
                 const Bill_Qty = Number(product.Bill_Qty);
                 const Item_Rate = RoundNumber(product.Item_Rate);
@@ -437,25 +457,42 @@ const PurchaseOrder = () => {
 
                 const Taxable_Amount = isInclusive ? (Amount - tax) : Amount;
                 const Final_Amo = isInclusive ? Amount : (Amount + tax);
-
                 const Cgst_Amo = !isIGST ? (taxCalc(GST_Inclusive, Amount, gstPercentage) / 2) : 0;
                 const Igst_Amo = isIGST ? taxCalc(GST_Inclusive, Amount, gstPercentage) : 0;
 
                 const request2 = new sql.Request(transaction)
-                    .input('Po_Date', Po_Date)
-                    .input('Purchase_Order_Id', Po_Id)
+                    .input('DeliveryId', Number(product?.DeliveryId || 0))
+                    .input('Po_Inv_Date', Po_Inv_Date)
+                    .input('PIN_Id', PIN_Id)
+                    .input('Location_Id', Number(product?.Location_Id || 0))
+
                     .input('S_No', i + 1)
                     .input('Item_Id', product.Item_Id)
+
                     .input('Bill_Qty', Bill_Qty)
+                    .input('Act_Qty', Bill_Qty)
+                    .input('Bill_Alt_Qty', Number(product?.Bill_Alt_Qty))
+                    .input('Alt_Act_Qty', Number(product?.Bill_Alt_Qty))
+
+                    .input('Unit_Id', product.Unit_Id ?? '')
+                    .input('Bill_Alt_Unit_Id', product.Unit_Id ?? '')
+                    .input('Act_unit_Id', product.Unit_Id ?? '')
+                    .input('Alt_Unit_Id', product.Unit_Id ?? '')
+
+                    .input('Unit_Name', product.Unit_Name ?? '')
+                    .input('Bill_Alt_Unit_Name', product.Unit_Name ?? '')
+                    .input('Act_unit_Nmae', product.Unit_Name ?? '')
+                    .input('Alt_Unit_Name', product.Unit_Name ?? '')
+
+                    .input('Batch_No', product?.Batch_No ?? '')
+                    .input('Taxable_Rate', Taxable_Rate)
                     .input('Item_Rate', Item_Rate)
                     .input('Amount', Amount)
                     .input('Free_Qty', 0)
                     .input('Total_Qty', Bill_Qty)
                     .input('Taxble', Taxble)
-                    .input('Taxable_Rate', Taxable_Rate)
                     .input('HSN_Code', productDetails.HSN_Code)
-                    .input('Unit_Id', product.UOM ?? '')
-                    .input('Unit_Name', product.Units ?? '')
+
                     .input('Taxable_Amount', Taxable_Amount)
                     .input('Tax_Rate', gstPercentage)
                     .input('Cgst', (gstPercentage / 2) ?? 0)
@@ -467,15 +504,21 @@ const PurchaseOrder = () => {
                     .input('Final_Amo', Final_Amo)
                     .input('Created_on', new Date())
                     .query(`
-                        INSERT INTO tbl_Purchase_Order_Inv_Stock_Info (
-                            Po_Date, Purchase_Order_Id, S_No, Item_Id, Bill_Qty, Item_Rate, Amount, Free_Qty, Total_Qty, 
-                            Taxble, Taxable_Rate, HSN_Code, Unit_Id, Unit_Name, Taxable_Amount, Tax_Rate, 
-                            Cgst, Cgst_Amo, Sgst, Sgst_Amo, Igst, Igst_Amo, Final_Amo, Created_on
-                        ) VALUES (
-                            @Po_Date, @Purchase_Order_Id, @S_No, @Item_Id, @Bill_Qty, @Item_Rate, @Amount, @Free_Qty, @Total_Qty, 
-                            @Taxble, @Taxable_Rate, @HSN_Code, @Unit_Id, @Unit_Name, @Taxable_Amount, @Tax_Rate, 
-                            @Cgst, @Cgst_Amo, @Sgst, @Sgst_Amo, @Igst, @Igst_Amo, @Final_Amo, @Created_on
-                        );`
+                            INSERT INTO tbl_Purchase_Order_Inv_Stock_Info (
+                                DeliveryId, PIN_Id, Po_Inv_Date, Location_Id, S_No, Item_Id,
+                                Bill_Qty, Act_Qty, Bill_Alt_Qty, Alt_Act_Qty,
+                                Unit_Id, Bill_Alt_Unit_Id, Act_unit_Id, Alt_Unit_Id,
+                                Unit_Name, Bill_Alt_Unit_Name, Act_unit_Nmae, Alt_Unit_Name, Batch_No,
+                                Taxable_Rate, Item_Rate, Amount, Free_Qty, Total_Qty, Taxble,
+                                HSN_Code, Taxable_Amount, Tax_Rate, Cgst, Cgst_Amo, Sgst, Sgst_Amo, Igst, Igst_Amo, Final_Amo, Created_on
+                            ) VALUES (
+                                @DeliveryId, @PIN_Id, @Po_Inv_Date, @Location_Id, @S_No, @Item_Id,
+                                @Bill_Qty, @Act_Qty, @Bill_Alt_Qty, @Alt_Act_Qty,
+                                @Unit_Id, @Bill_Alt_Unit_Id, @Act_unit_Id, @Alt_Unit_Id,
+                                @Unit_Name, @Bill_Alt_Unit_Name, @Act_unit_Nmae, @Alt_Unit_Name, @Batch_No,
+                                @Taxable_Rate, @Item_Rate, @Amount, @Free_Qty, @Total_Qty, @Taxble,
+                                @HSN_Code, @Taxable_Amount, @Tax_Rate, @Cgst, @Cgst_Amo, @Sgst, @Sgst_Amo, @Igst, @Igst_Amo, @Final_Amo, @Created_on
+                            );`
                     )
 
                 const result2 = await request2;
@@ -483,6 +526,33 @@ const PurchaseOrder = () => {
                 if (result2.rowsAffected[0] === 0) {
                     throw new Error('Failed to create order, Try again.');
                 }
+            }
+
+            const DE_PO_ID = Product_Array.reduce((acc, pro) => {
+                const existIndex = acc.findIndex(ind => isEqualNumber(ind, pro.OrderId));
+
+                if (existIndex === -1) {
+                    return acc.concat(pro.OrderId);
+                } else {
+                    return acc;
+                }
+            }, []);
+
+            for (let i = 0; i < DE_PO_ID.length; i++) {
+                const request = new sql.Request(transaction)
+                    .input('Order_Id', DE_PO_ID[i])
+                    .input('PIN_Id', PIN_Id)
+                    .query(`
+                        INSERT INTO tbl_Purchase_Order_Inv_Gen_Order (
+                            Order_Id, PIN_Id
+                        ) VALUES (
+                            @Order_Id, @PIN_Id
+                        );`
+                    );
+
+                const result = await request;
+
+                if (result.rowsAffected[0] === 0) throw new Error('Failed to save data entry id')
             }
 
             await transaction.commit();
@@ -608,10 +678,43 @@ const PurchaseOrder = () => {
         }
     }
 
+    const getVoucherType = async (req, res) => {
+        const { Type = 'PURCHASE' } = req.query;
+
+        try {
+            const request = new sql.Request()
+                .input('Type', Type)
+                .query(`SELECT * FROM tbl_Voucher_Type WHERE Type = @Type`)
+
+            const result = await request;
+
+            if (result.recordset.length > 0) return dataFound(res, result.recordset);
+            else return noData(res);
+        } catch (e) {
+            servError(e, res);
+        }
+    }
+
+    const getStockItemLedgerName = async (req, res) => {
+        try {
+            const request = new sql.Request()
+                .query(`SELECT * FROM tbl_Stock_Item_Ledger_Name`)
+
+            const result = await request;
+
+            if (result.recordset.length > 0) return dataFound(res, result.recordset);
+            else return noData(res);
+        } catch (e) {
+            servError(e, res);
+        }
+    }
+
     return {
         purchaseOrderCreation,
         editPurchaseOrder,
         getPurchaseOrder,
+        getVoucherType,
+        getStockItemLedgerName,
     }
 }
 
