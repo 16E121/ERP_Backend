@@ -54,7 +54,7 @@ const PurchaseOrderDataEntry = () => {
                             LEFT JOIN tbl_Stock_LOS AS los
                             ON los.Stock_Tally_Id = p.ERP_Id
                     	WHERE
-                    		OrderId IN (
+                    		d.OrderId IN (
                     			SELECT 
                     				pgi.Sno
                     			FROM
@@ -85,6 +85,10 @@ const PurchaseOrderDataEntry = () => {
                     	pgi.*,
                         COALESCE(lol.Ledger_Name, 'Not found') AS Ledger_Name,
                         COALESCE(lol.Party_District, 'Not found') AS Party_District,
+                        CASE 
+                            WHEN poi.Order_Id IS NOT NULL THEN 1 
+                            ELSE 0 
+                        END AS IsConvertedAsInvoice,
                     	ISNULL((
                     		SELECT JSON_QUERY((
                     			SELECT * FROM ITEM_DETAILS WHERE ITEM_DETAILS.OrderId = pgi.Sno FOR JSON AUTO)
@@ -106,6 +110,8 @@ const PurchaseOrderDataEntry = () => {
                         ON r.Retailer_Id = pgi.PartyId
                         LEFT JOIN LOLData AS lol
                         ON lol.Ledger_Tally_Id = r.ERP_Id
+                        LEFT JOIN tbl_Purchase_Order_Inv_Gen_Order AS poi
+                        ON poi.Order_Id = pgi.Sno
                     WHERE
                     	CONVERT(DATE, pgi.TradeConfirmDate) >= CONVERT(DATE, @Fromdate)
                     	AND
@@ -672,13 +678,21 @@ const PurchaseOrderDataEntry = () => {
                     SELECT 
                         d.*,
                         COALESCE(g.PO_ID, 'not found') AS PO_ID
-                    FROM tbl_PurchaseOrderDeliveryDetails AS d
-                    LEFT JOIN tbl_PurchaseOrderGeneralDetails AS g
-                    ON d.OrderId = g.Sno
+                    FROM 
+                        tbl_PurchaseOrderDeliveryDetails AS d
+                    LEFT JOIN 
+                        tbl_PurchaseOrderGeneralDetails AS g
+                        ON d.OrderId = g.Sno
+                    LEFT JOIN 
+                        tbl_Purchase_Order_Inv_Stock_Info AS ps
+                        ON d.Id = ps.DeliveryId
                     WHERE 
                         g.PartyId = @VendorId
                         AND g.OrderStatus = 'Completed'
-                    ORDER BY d.OrderId;`
+                        AND ps.DeliveryId IS NULL
+                    ORDER BY 
+                        d.OrderId;
+                    `
                     );
 
             const result = await request;

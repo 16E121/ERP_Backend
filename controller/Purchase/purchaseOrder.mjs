@@ -577,11 +577,14 @@ const PurchaseOrder = () => {
                 SELECT
             		oi.*,
             		COALESCE(pm.Product_Name, 'unknown') AS Product_Name,
-                    COALESCE(pm.Product_Image_Name, 'unknown') AS Product_Image_Name
+                    COALESCE(pm.Product_Image_Name, 'unknown') AS Product_Image_Name,
+                    COALESCE(pdd.OrderId, '') AS OrderId
             	FROM
             		tbl_Purchase_Order_Inv_Stock_Info AS oi
                     LEFT JOIN tbl_Product_Master AS pm
                     ON pm.Product_Id = oi.Item_Id
+                    LEFT JOIN tbl_PurchaseOrderDeliveryDetails AS pdd
+                    ON pdd.Id = oi.DeliveryId
                 WHERE
                     CONVERT(DATE, oi.Po_Inv_Date) >= CONVERT(DATE, @from)
             	    AND
